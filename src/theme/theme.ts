@@ -13,14 +13,13 @@ export const SPACING = {
   space_30: 30,
   space_32: 32,
   space_36: 36,
-};
+} as const;
 
 export const COLORS = {
-  SecondaryColor: '#C24332',
-  primaryColor: '#2E313F',
+  primaryColor: '#4158F4',
   primaryWhiteHex: '#FFFFFF',
   secondaryBlackRGBA: 'rgba(0,0,0,0.7)',
-};
+} as const;
 
 export const FONTFAMILY = {
   regular: 'BalooThambi2-Regular',
@@ -28,7 +27,7 @@ export const FONTFAMILY = {
   bold: 'BalooThambi2-Bold',
   semibold: 'BalooThambi2-SemiBold',
   extraBold: 'BalooThambi2-ExtraBold',
-};
+} as const;
 
 export const FONTSIZE = {
   size_8: 8,
@@ -41,7 +40,7 @@ export const FONTSIZE = {
   size_24: 24,
   size_28: 28,
   size_30: 30,
-};
+} as const;
 
 export const BORDERRADIUS = {
   radius_4: 4,
@@ -51,4 +50,4 @@ export const BORDERRADIUS = {
   radius_20: 20,
   radius_25: 25,
   radius_100: 100,
-};
+} as const;

@@ -72,7 +72,7 @@ const LoginScreen: React.FC = () => {
           </View>
           {/* Curved background at the bottom with text inside */}
           <View style={styles.bottomCurve}>
-            <View style={{ paddingTop: 50 }}>
+            <View style={{ paddingTop: height * 0.08 }}>
               <CustomTextInput
                 placeholder="Employee Code"
                 icon="account-outline"

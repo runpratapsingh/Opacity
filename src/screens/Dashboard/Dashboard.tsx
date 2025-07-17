@@ -1,3 +1,5 @@
+import { useNavigation } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
 import React from 'react';
 import {
   Text,
@@ -11,13 +13,13 @@ import {
   ScrollView,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/FontAwesome';
+import { RootStackParamList } from '../../navigation/StackNavigator';
+type DashboardScreenNavigationProp = StackNavigationProp<
+  RootStackParamList,
+  'Dashboard'
+>;
 
 const { width } = Dimensions.get('window');
-
-interface Tile {
-  title: string;
-  icon: string;
-}
 
 interface Activity {
   title: string;
@@ -29,21 +31,53 @@ interface Stat {
   label: string;
 }
 
+interface Tile {
+  title: string;
+  icon: string;
+  navigateTo?: keyof RootStackParamList;
+}
+
 const tiles: Tile[] = [
-  { title: 'CHECK IN/OUT', icon: 'https://img.icons8.com/color/96/marker.png' },
   {
     title: 'CHECK IN/OUT',
-    icon: 'https://img.icons8.com/color/96/todo-list.png',
+    icon: 'https://img.icons8.com/color/96/marker.png',
+    navigateTo: 'CheckInOut',
   },
-  { title: 'TIMESHEET', icon: 'https://img.icons8.com/color/96/stopwatch.png' },
-  { title: 'EXPENSES', icon: 'https://img.icons8.com/color/96/money.png' },
-  { title: 'LEAVE', icon: 'https://img.icons8.com/color/96/beach.png' },
+  {
+    title: 'ATTENDANCE',
+    icon: 'https://img.icons8.com/color/96/todo-list.png',
+    navigateTo: 'Attendance',
+  },
+  {
+    title: 'TIMESHEET',
+    icon: 'https://img.icons8.com/color/96/stopwatch.png',
+    navigateTo: 'Timesheet',
+  },
+  {
+    title: 'EXPENSES',
+    icon: 'https://img.icons8.com/color/96/money.png',
+    navigateTo: 'Expenses',
+  },
+  {
+    title: 'LEAVE',
+    icon: 'https://img.icons8.com/color/96/beach.png',
+    navigateTo: 'Leave',
+  },
   {
     title: 'ASSIGNMENT',
     icon: 'https://img.icons8.com/color/96/strategy-board.png',
+    navigateTo: 'Assignment',
   },
-  { title: 'REQUISITION', icon: 'https://img.icons8.com/color/96/task.png' },
-  { title: 'HOLIDAYS', icon: 'https://img.icons8.com/color/96/summer.png' },
+  {
+    title: 'REQUISITION',
+    icon: 'https://img.icons8.com/color/96/task.png',
+    navigateTo: 'Requisition',
+  },
+  {
+    title: 'HOLIDAYS',
+    icon: 'https://img.icons8.com/color/96/summer.png',
+    navigateTo: 'Holidays',
+  },
 ];
 
 const activities: Activity[] = [
@@ -61,6 +95,16 @@ const stats: Stat[] = [
 ];
 
 const DashboardScreen: React.FC = () => {
+  const navigation = useNavigation<DashboardScreenNavigationProp>();
+
+  const handleTilePress = (navigateTo?: keyof RootStackParamList) => {
+    if (navigateTo) {
+      navigation.navigate(navigateTo);
+    }
+  };
+
+  // Rest of your component code
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#4158F4" />
@@ -81,22 +125,28 @@ const DashboardScreen: React.FC = () => {
                 <Icon name="search" size={20} color="white" />
               </TouchableOpacity>
               <TouchableOpacity>
-                <Icon name="bell" size={20} color="white" />
+                <Icon name="bullseye" size={20} color="white" />
               </TouchableOpacity>
               <TouchableOpacity>
-                <Icon name="question-circle" size={20} color="white" />
+                <Icon name="bell" size={20} color="white" />
               </TouchableOpacity>
             </View>
           </View>
           <View style={styles.profileCard}>
             <Image
-              source={require('../assets/male_placeholder.png')}
+              source={require('../../assets/male_placeholder.png')}
               style={styles.avatar}
             />
             <View style={styles.profileText}>
               <Text style={styles.name}>Arun Pratap Singh</Text>
+              {/* <Text style={styles.detail}>Emp Code: P0363</Text>
+              <Text style={styles.detail}>Mobile App Developer</Text> */}
               <Text style={styles.detail}>Emp Code: P0363</Text>
-              <Text style={styles.detail}>Mobile App Developer</Text>
+              <Text style={styles.detail}>📱 Mobile App Developer</Text>
+              <Text style={styles.detail}>
+                📧 arun.singh@prudencesoftech.com
+              </Text>
+              <Text style={styles.detail}>📞 9696809083</Text>
             </View>
           </View>
           <View style={styles.statsContainer}>
@@ -115,7 +165,10 @@ const DashboardScreen: React.FC = () => {
             contentContainerStyle={styles.grid}
             keyExtractor={(item, index) => index.toString()}
             renderItem={({ item }) => (
-              <TouchableOpacity style={styles.tile}>
+              <TouchableOpacity
+                onPress={() => handleTilePress(item.navigateTo)}
+                style={styles.tile}
+              >
                 <Image source={{ uri: item.icon }} style={styles.tileIcon} />
                 <Text style={styles.tileText}>{item.title}</Text>
               </TouchableOpacity>
@@ -149,7 +202,7 @@ const styles = StyleSheet.create({
   },
   topContainer: {
     backgroundColor: '#4158F4',
-    paddingHorizontal: 20,
+    paddingHorizontal: 15,
     paddingTop: 10,
     paddingBottom: 30,
     borderBottomLeftRadius: 30,
@@ -192,19 +245,19 @@ const styles = StyleSheet.create({
   },
   name: {
     fontWeight: 'bold',
-    fontSize: 18,
+    fontSize: 16,
     marginBottom: 4,
     color: '#fff',
   },
   detail: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#fff',
   },
   statsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    marginTop: 20,
+    marginTop: 5,
   },
   statItem: {
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
@@ -226,7 +279,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   contentCardListContainer: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 15,
     marginTop: 20,
   },
   grid: {
@@ -253,7 +306,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   recentActivitiesContainer: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 15,
     marginTop: 20,
   },
   recentActivitiesTitle: {

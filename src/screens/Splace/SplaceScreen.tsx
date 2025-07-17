@@ -86,7 +86,8 @@ import {
 } from 'react-native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { useNavigation } from '@react-navigation/native';
-import { RootStackParamList } from '../navigation/StackNavigator';
+import { RootStackParamList } from '../../navigation/StackNavigator';
+import { StatusBar } from 'react-native';
 
 const SplashScreen: React.FC = () => {
   const opacity = useRef(new Animated.Value(0)).current;
@@ -116,8 +117,9 @@ const SplashScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
       <Animated.View style={{ opacity, alignItems: 'center' }}>
-        <Image source={require('../assets/Logo.png')} style={styles.logo} />
+        <Image source={require('../../assets/Logo.png')} style={styles.logo} />
         <Text style={styles.title}>𝕆ℙ𝔸ℂ𝕀𝕋𝕐</Text>
       </Animated.View>
     </View>
@@ -131,6 +133,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#FFF',
   },
   logo: {
     width: 150,

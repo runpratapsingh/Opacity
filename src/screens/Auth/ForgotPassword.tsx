@@ -20,12 +20,13 @@ import CustomTextInput from '../../components/CustumInput';
 import CustomModal from '../../components/CustumModal';
 
 const { height, width } = Dimensions.get('window');
+type ModalType = 'success' | 'error';
 
 const LoginScreen: React.FC = () => {
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState<string>('');
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
-  const [modalVisible, setModalVisible] = useState(false);
-  const [type, setType] = useState<'success' | 'error'>('success');
+  const [modalVisible, setModalVisible] = useState<boolean>(false);
+  const [type, setType] = useState<ModalType>('success');
 
   const handleForgotPassword = () => {
     if (email) {
@@ -67,7 +68,7 @@ const LoginScreen: React.FC = () => {
             style={styles.bottomCurve}
             // keyboardShouldPersistTaps="handled"
           >
-            <View style={{ paddingTop: 50 }}>
+            <View style={{ paddingTop: height * 0.08 }}>
               <CustomTextInput
                 placeholder="Email Id"
                 icon="email-outline"
