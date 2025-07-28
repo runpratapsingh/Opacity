@@ -121,13 +121,17 @@ const DashboardScreen: React.FC = () => {
               <Text style={styles.headerText}>Dashboard</Text>
             </View>
             <View style={styles.headerRight}>
-              <TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => navigation.navigate('SearchScreen')}
+              >
                 <Icon name="search" size={20} color="white" />
               </TouchableOpacity>
-              <TouchableOpacity>
+              <TouchableOpacity onPress={() => navigation.navigate('Goals')}>
                 <Icon name="bullseye" size={20} color="white" />
               </TouchableOpacity>
-              <TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => navigation.navigate('Notification')}
+              >
                 <Icon name="bell" size={20} color="white" />
               </TouchableOpacity>
             </View>
@@ -202,17 +206,22 @@ const styles = StyleSheet.create({
   },
   topContainer: {
     backgroundColor: '#4158F4',
-    paddingHorizontal: 15,
-    paddingTop: 10,
+    // paddingHorizontal: 15,
+    // paddingTop: 10,
     paddingBottom: 30,
     borderBottomLeftRadius: 30,
     borderBottomRightRadius: 30,
   },
   header: {
     flexDirection: 'row',
+    height: 50,
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#fff',
+    paddingHorizontal: 15,
+    // backgroundColor: 'red',
   },
   headerLeft: {
     flexDirection: 'row',
@@ -233,6 +242,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 20,
+    paddingHorizontal: 15,
   },
   avatar: {
     width: 70,
@@ -258,6 +268,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     justifyContent: 'space-between',
     marginTop: 5,
+    paddingHorizontal: 15,
   },
   statItem: {
     backgroundColor: 'rgba(255, 255, 255, 0.1)',

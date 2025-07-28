@@ -13,6 +13,11 @@ import HolidayScreen from '../screens/Dashboard/HolidayScreen';
 import ExpenseScreen from '../screens/Dashboard/ExpenseScreen';
 import AssignmentScreen from '../screens/Dashboard/AssignmentScreen';
 import ViewTimeSheetScreen from '../screens/Dashboard/TimeSheetScreens/ViewTimeSheet';
+import TimeSheetDayDetailScreen from '../screens/Dashboard/TimeSheetScreens/ViewDaySheetDetails';
+import EmployeeListScreen from '../screens/Dashboard/SearchScreen';
+import EmployeeProfileScreen from '../screens/Dashboard/ViewProfile';
+import NotificationScreen from '../screens/Dashboard/NotificationScreen';
+import GoalsScreen from '../screens/Dashboard/GoalOfYear';
 
 export type RootStackParamList = {
   Dashboard: undefined;
@@ -27,7 +32,12 @@ export type RootStackParamList = {
   Assignment: undefined;
   Requisition: undefined;
   Holidays: undefined;
+  DaySheetDetails: undefined;
   ViewTimeSheet: undefined;
+  SearchScreen: undefined;
+  ViewProfile: undefined;
+  Notification: undefined;
+  Goals: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -51,6 +61,14 @@ const StackNavigator = () => {
       <Stack.Screen name="Assignment" component={AssignmentScreen} />
       <Stack.Screen name="Requisition" component={RequisitionScreen} />
       <Stack.Screen name="Holidays" component={HolidayScreen} />
+      <Stack.Screen
+        name="DaySheetDetails"
+        component={TimeSheetDayDetailScreen}
+      />
+      <Stack.Screen name="SearchScreen" component={EmployeeListScreen} />
+      <Stack.Screen name="ViewProfile" component={EmployeeProfileScreen} />
+      <Stack.Screen name="Notification" component={NotificationScreen} />
+      <Stack.Screen name="Goals" component={GoalsScreen} />
     </Stack.Navigator>
   );
 };
