@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   StyleSheet,
   Text,
@@ -16,6 +16,9 @@ import Icon from 'react-native-vector-icons/FontAwesome';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../../navigation/StackNavigator';
+import { api } from '../../../api';
+import { ENDPOINTS } from '../../../api/Endpoints';
+import { getUserData } from '../../../utils/StorageManager';
 
 type TimeSheetScreenNavigationProp = StackNavigationProp<RootStackParamList>;
 
@@ -27,30 +30,35 @@ const years: number[] = Array.from(
 );
 
 type TimesheetItem = {
-  month: string;
-  totalDays: number;
-  status: 'NO ENTRY' | 'FINAL' | 'OPEN';
+  week_start_date: string;
+  week_end_date: string;
+  week_name: string;
+  month_name: string;
+  status_id: string;
+  days: string;
+  status: 'NO ENTRY' | 'Approved' | 'OPEN';
 };
 
-const timesheetData: TimesheetItem[] = [
-  { month: 'Jan-2025', totalDays: 0, status: 'NO ENTRY' },
-  { month: 'Feb-2025', totalDays: 0, status: 'NO ENTRY' },
-  { month: 'Mar-2025', totalDays: 18, status: 'FINAL' },
-  { month: 'Apr-2025', totalDays: 22, status: 'FINAL' },
-  { month: 'May-2025', totalDays: 22, status: 'FINAL' },
-  { month: 'Jun-2025', totalDays: 21, status: 'FINAL' },
-  { month: 'Jul-2025', totalDays: 10, status: 'OPEN' },
-  { month: 'Aug-2025', totalDays: 0, status: 'NO ENTRY' },
-  { month: 'Sep-2025', totalDays: 0, status: 'NO ENTRY' },
-  { month: 'Oct-2025', totalDays: 0, status: 'NO ENTRY' },
-  { month: 'Nov-2025', totalDays: 0, status: 'NO ENTRY' },
-  { month: 'Dec-2025', totalDays: 0, status: 'NO ENTRY' },
-];
+// const timesheetData: TimesheetItem[] = [
+//   { month: 'Jan-2025', totalDays: 0, status: 'NO ENTRY' },
+//   { month: 'Feb-2025', totalDays: 0, status: 'NO ENTRY' },
+//   { month: 'Mar-2025', totalDays: 18, status: 'FINAL' },
+//   { month: 'Apr-2025', totalDays: 22, status: 'FINAL' },
+//   { month: 'May-2025', totalDays: 22, status: 'FINAL' },
+//   { month: 'Jun-2025', totalDays: 21, status: 'FINAL' },
+//   { month: 'Jul-2025', totalDays: 10, status: 'OPEN' },
+//   { month: 'Aug-2025', totalDays: 0, status: 'NO ENTRY' },
+//   { month: 'Sep-2025', totalDays: 0, status: 'NO ENTRY' },
+//   { month: 'Oct-2025', totalDays: 0, status: 'NO ENTRY' },
+//   { month: 'Nov-2025', totalDays: 0, status: 'NO ENTRY' },
+//   { month: 'Dec-2025', totalDays: 0, status: 'NO ENTRY' },
+// ];
 
 const TimeSheetScreen: React.FC = () => {
   const [isYearPickerVisible, setIsYearPickerVisible] =
     useState<boolean>(false);
   const [selectedYear, setSelectedYear] = useState<number>(currentYear);
+  const [timesheetData, setTimeSheetData] = useState<TimesheetItem[]>([]);
   const navigation = useNavigation<TimeSheetScreenNavigationProp>();
 
   const handleCalendarPress = (): void => {
@@ -64,7 +72,7 @@ const TimeSheetScreen: React.FC = () => {
 
   const getStatusColor = (status: TimesheetItem['status']): string => {
     switch (status) {
-      case 'FINAL':
+      case 'Approved':
         return '#73B376';
       case 'OPEN':
         return '#00BEFF';
@@ -74,7 +82,10 @@ const TimeSheetScreen: React.FC = () => {
   };
 
   const handleStatusPress = () => {
-    navigation.navigate('ViewTimeSheet');
+    navigation.navigate('ViewTimeSheet', { defaultTab: 'SUMMARY' });
+  };
+  const handleApplyExpense = () => {
+    navigation.navigate('ViewTimeSheet', { defaultTab: 'CREATE' });
   };
 
   const renderHeader = (): React.ReactElement => (
@@ -91,9 +102,9 @@ const TimeSheetScreen: React.FC = () => {
     item: TimesheetItem;
   }): React.ReactElement => (
     <View style={styles.itemContainer}>
-      <Text style={styles.monthText}>{item.month}</Text>
-      <Text style={styles.totalDaysText}>{item.totalDays}</Text>
-      {item.status === 'FINAL' || item.status === 'OPEN' ? (
+      <Text style={styles.monthText}>{item.month_name}</Text>
+      <Text style={styles.totalDaysText}>{item.days}</Text>
+      {item.status === 'Approved' || item.status === 'OPEN' ? (
         <TouchableOpacity
           activeOpacity={0.8}
           style={[
@@ -120,6 +131,31 @@ const TimeSheetScreen: React.FC = () => {
     </View>
   );
 
+  const getTimeSheet = async () => {
+    try {
+      const user = await getUserData();
+      console.log('User from storage:', user);
+      const res = await api.get(ENDPOINTS.TIMESHEET_STATUS, {
+        params: {
+          emp_id: user?.emp_id,
+          year: selectedYear,
+        },
+      });
+
+      if (res.status === 200) {
+        setTimeSheetData(res.data.data.month_status);
+      }
+
+      console.log('hfsjakhfkjahfkaj', res);
+    } catch (error) {
+      console.log('shfkjdhfksjfhskjd', error);
+    }
+  };
+
+  useEffect(() => {
+    getTimeSheet();
+  }, [selectedYear]);
+
   return (
     <View style={styles.container}>
       <Header
@@ -133,7 +169,10 @@ const TimeSheetScreen: React.FC = () => {
         keyExtractor={(item, index) => index.toString()}
         ListHeaderComponent={renderHeader}
       />
-      <TouchableOpacity style={styles.createButton}>
+      <TouchableOpacity
+        onPress={handleApplyExpense}
+        style={styles.createButton}
+      >
         <Text style={styles.createButtonText}>CREATE TIME SHEET</Text>
       </TouchableOpacity>
       <Modal

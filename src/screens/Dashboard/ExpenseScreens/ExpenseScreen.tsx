@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   StyleSheet,
   Text,
@@ -10,12 +10,15 @@ import {
   FlatList,
   Platform,
 } from 'react-native';
-import { COLORS } from '../../theme/theme';
+import { COLORS } from '../../../theme/theme';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import Header from '../../components/HeaderComp';
-import { RootStackParamList } from '../../navigation/StackNavigator';
+import Header from '../../../components/HeaderComp';
+import { RootStackParamList } from '../../../navigation/StackNavigator';
+import { api } from '../../../api';
+import { ENDPOINTS } from '../../../api/Endpoints';
+import { getUserData } from '../../../utils/StorageManager';
 
 type TimeSheetScreenNavigationProp = StackNavigationProp<RootStackParamList>;
 
@@ -74,8 +77,41 @@ const ExpenseScreen: React.FC = () => {
   };
 
   const handleStatusPress = () => {
-    navigation.navigate('ViewTimeSheet');
+    navigation.navigate('ViewExpenses', { defaultTab: 'SUMMARY' });
   };
+  const handleApplyExpense = () => {
+    navigation.navigate('ViewExpenses', { defaultTab: 'CREATE' });
+  };
+
+  const getExpenseHistory = async () => {
+    try {
+      const user = await getUserData();
+      const body = {
+        emp_id: user?.emp_id,
+        // month: month,
+        year: selectedYear,
+      };
+
+      const response = await api.post(ENDPOINTS.EXPENSE_HISTORY, body, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      console.log('getExpenseHistory Response:', response.data);
+    } catch (error: any) {
+      console.error(
+        'getExpenseHistory Error:',
+        error?.response || error?.message,
+      );
+      throw error;
+    }
+  };
+
+  useEffect(() => {
+    // Fetch expense history for the selected year
+    getExpenseHistory();
+  }, [selectedYear]);
 
   const renderHeader = (): React.ReactElement => (
     <View style={styles.headerContainer}>
@@ -92,7 +128,7 @@ const ExpenseScreen: React.FC = () => {
   }): React.ReactElement => (
     <View style={styles.itemContainer}>
       <Text style={styles.monthText}>{item.month}</Text>
-      <Text style={styles.totalDaysText}>{`Rs ${item.totalDays}`}</Text>
+      <Text style={styles.totalDaysText}>{`₹ ${item.totalDays}`}</Text>
       {item.status === 'FINAL' || item.status === 'OPEN' ? (
         <TouchableOpacity
           activeOpacity={0.8}
@@ -133,7 +169,10 @@ const ExpenseScreen: React.FC = () => {
         keyExtractor={(item, index) => index.toString()}
         ListHeaderComponent={renderHeader}
       />
-      <TouchableOpacity style={styles.createButton}>
+      <TouchableOpacity
+        style={styles.createButton}
+        onPress={handleApplyExpense}
+      >
         <Text style={styles.createButtonText}>APPLY EXPENSE</Text>
       </TouchableOpacity>
       <Modal

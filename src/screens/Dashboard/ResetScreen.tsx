@@ -1,7 +1,7 @@
 import { StatusBar, StyleSheet, Text, View } from 'react-native';
 import React from 'react';
 
-const AssignmentScreen = () => {
+const ResetScreen = () => {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#F5F5F5" />
@@ -10,7 +10,7 @@ const AssignmentScreen = () => {
   );
 };
 
-export default AssignmentScreen;
+export default ResetScreen;
 
 const styles = StyleSheet.create({
   container: {

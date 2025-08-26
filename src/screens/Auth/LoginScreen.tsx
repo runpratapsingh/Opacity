@@ -17,6 +17,12 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../navigation/StackNavigator';
 import CustomTextInput from '../../components/CustumInput';
 import CustomModal from '../../components/CustumModal';
+import axios from 'axios';
+import { ENDPOINTS } from '../../api/Endpoints';
+import { LoginRequest, LoginResponse } from '../../types/api.types';
+import { api, HEADERS } from '../../api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { setUserAuthorized, setUserData } from '../../utils/StorageManager';
 
 const { height, width } = Dimensions.get('window');
 
@@ -28,15 +34,47 @@ const LoginScreen: React.FC = () => {
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const [modalVisible, setModalVisible] = useState<boolean>(false);
   const [type, setType] = useState<ModalType>('success');
+  const [message, setMessage] = useState<string>('');
 
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
 
-  const handleLogin = () => {
-    if (employeeCode && password) {
-      navigation.replace('Dashboard');
-    } else {
+  const handleLogin = async () => {
+    if (!employeeCode || !password) {
       setType('error');
       setModalVisible(true);
+      return;
+    }
+
+    const loginPayload: LoginRequest = {
+      user_name: employeeCode,
+      password: password,
+      company_code: 'PTPL',
+    };
+
+    try {
+      const response = await api.post<LoginResponse>(
+        ENDPOINTS.LOGIN,
+        loginPayload,
+      );
+
+      if (response?.data?.status === 'success') {
+        console.log('Login success:', response.data);
+        await setUserData(response.data.Data.emp_details[0]);
+        await setUserAuthorized(true);
+        navigation.replace('Dashboard');
+      } else {
+        console.error('Login failed:', response.data.message);
+        setType('error');
+        setModalVisible(true);
+        setMessage(
+          response?.data?.message || 'Login failed. Please try again.',
+        );
+      }
+    } catch (error: any) {
+      console.error('Login error:', error);
+      setType('error');
+      setModalVisible(true);
+      setMessage('Something went wrong. Please try again later.');
     }
   };
 
@@ -113,11 +151,7 @@ const LoginScreen: React.FC = () => {
             visible={modalVisible}
             onClose={() => setModalVisible(false)}
             type={type}
-            message={
-              type === 'success'
-                ? 'Operation Successful!'
-                : 'Please enter both Employee Code and Password!'
-            }
+            message={message}
             autoClose={false}
           />
         </View>

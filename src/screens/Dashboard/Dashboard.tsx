@@ -1,6 +1,4 @@
-import { useNavigation } from '@react-navigation/native';
-import { StackNavigationProp } from '@react-navigation/stack';
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   Text,
   StyleSheet,
@@ -14,6 +12,12 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import { RootStackParamList } from '../../navigation/StackNavigator';
+import { DrawerActions, useNavigation } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
+import { getUserData } from '../../utils/StorageManager';
+import { get } from 'react-native/Libraries/TurboModule/TurboModuleRegistry';
+import { UserData } from '../../types/api.types';
+
 type DashboardScreenNavigationProp = StackNavigationProp<
   RootStackParamList,
   'Dashboard'
@@ -78,6 +82,11 @@ const tiles: Tile[] = [
     icon: 'https://img.icons8.com/color/96/summer.png',
     navigateTo: 'Holidays',
   },
+  // {
+  //   title: 'RESET PASSWORD',
+  //   icon: 'https://img.icons8.com/color/96/password1.png', // Replace with another if you prefer
+  //   navigateTo: 'ResetScreen',
+  // },
 ];
 
 const activities: Activity[] = [
@@ -96,14 +105,24 @@ const stats: Stat[] = [
 
 const DashboardScreen: React.FC = () => {
   const navigation = useNavigation<DashboardScreenNavigationProp>();
+  const navigation1 = useNavigation();
+  const [userDetails, setUserDetails] = React.useState<UserData | null>(null);
+
+  useEffect(() => {
+    // To retrieve later
+    const getUserDataFromStorage = async () => {
+      const user = await getUserData();
+      setUserDetails(user);
+      console.log('User from storage:', user);
+    };
+    getUserDataFromStorage();
+  }, []);
 
   const handleTilePress = (navigateTo?: keyof RootStackParamList) => {
     if (navigateTo) {
       navigation.navigate(navigateTo);
     }
   };
-
-  // Rest of your component code
 
   return (
     <View style={styles.container}>
@@ -115,9 +134,11 @@ const DashboardScreen: React.FC = () => {
         <View style={styles.topContainer}>
           <View style={styles.header}>
             <View style={styles.headerLeft}>
-              <TouchableOpacity>
+              {/* <TouchableOpacity
+              // onPress={() => navigation1.dispatch(DrawerActions.openDrawer())}
+              >
                 <Icon name="bars" size={20} color="white" />
-              </TouchableOpacity>
+              </TouchableOpacity> */}
               <Text style={styles.headerText}>Dashboard</Text>
             </View>
             <View style={styles.headerRight}>
@@ -138,19 +159,47 @@ const DashboardScreen: React.FC = () => {
           </View>
           <View style={styles.profileCard}>
             <Image
-              source={require('../../assets/male_placeholder.png')}
+              source={
+                // userDetails?.image
+                //   ? { uri: userDetails?.image }
+                //   :
+                require('../../assets/male_placeholder.png')
+              }
               style={styles.avatar}
             />
             <View style={styles.profileText}>
-              <Text style={styles.name}>Arun Pratap Singh</Text>
+              <Text style={styles.name}>{userDetails?.emp_name || ''}</Text>
               {/* <Text style={styles.detail}>Emp Code: P0363</Text>
               <Text style={styles.detail}>Mobile App Developer</Text> */}
-              <Text style={styles.detail}>Emp Code: P0363</Text>
-              <Text style={styles.detail}>📱 Mobile App Developer</Text>
               <Text style={styles.detail}>
-                📧 arun.singh@prudencesoftech.com
+                Emp Code: {userDetails?.emp_code || ''}
               </Text>
-              <Text style={styles.detail}>📞 9696809083</Text>
+              <View style={styles.row}>
+                <Icon
+                  name="user-o"
+                  size={12}
+                  color="#FFF"
+                  style={styles.icon}
+                />
+                <Text style={styles.detail}>
+                  {userDetails?.designation || ''}
+                </Text>
+              </View>
+
+              <View style={styles.row}>
+                <Icon
+                  name="envelope"
+                  size={12}
+                  color="#FFF"
+                  style={styles.icon}
+                />
+                <Text style={styles.detail}>{userDetails?.email || ''}</Text>
+              </View>
+
+              <View style={styles.row}>
+                <Icon name="phone" size={12} color="#FFF" style={styles.icon} />
+                <Text style={styles.detail}>9696809083</Text>
+              </View>
             </View>
           </View>
           <View style={styles.statsContainer}>
@@ -172,6 +221,7 @@ const DashboardScreen: React.FC = () => {
               <TouchableOpacity
                 onPress={() => handleTilePress(item.navigateTo)}
                 style={styles.tile}
+                activeOpacity={0.7}
               >
                 <Image source={{ uri: item.icon }} style={styles.tileIcon} />
                 <Text style={styles.tileText}>{item.title}</Text>
@@ -231,7 +281,6 @@ const styles = StyleSheet.create({
     fontSize: 20,
     color: '#fff',
     fontWeight: 'bold',
-    marginLeft: 10,
   },
   headerRight: {
     flexDirection: 'row',
@@ -259,9 +308,21 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     color: '#fff',
   },
+  // detail: {
+  //   fontSize: 12,
+  //   color: '#fff',
+  // },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  icon: {
+    marginRight: 8,
+  },
   detail: {
+    color: '#FFF',
     fontSize: 12,
-    color: '#fff',
+    fontWeight: '500',
   },
   statsContainer: {
     flexDirection: 'row',
@@ -295,13 +356,14 @@ const styles = StyleSheet.create({
   },
   grid: {
     justifyContent: 'center',
+    alignItems: 'center',
   },
   tile: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 8,
+    borderRadius: 5,
     alignItems: 'center',
     paddingVertical: 15,
-    margin: 5,
+    margin: 3,
     elevation: 2,
     width: (width - 60) / 3,
   },

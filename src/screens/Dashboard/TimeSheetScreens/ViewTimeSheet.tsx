@@ -14,7 +14,7 @@ import CreateScreen from './CreateTimeSheet';
 import { COLORS } from '../../../theme/theme';
 import Header from '../../../components/HeaderComp';
 import CustomDropdown from '../../../components/CustumDropdown';
-import { useNavigation } from '@react-navigation/native';
+import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../../navigation/StackNavigator';
 
@@ -55,7 +55,7 @@ const timesheetData = [
     status: 'Full Day',
   },
 ];
-
+type ViewExpenseRouteProp = RouteProp<RootStackParamList, 'ViewTimeSheet'>;
 type TimeSheetScreenNavigationProp = StackNavigationProp<RootStackParamList>;
 
 const { height, width } = Dimensions.get('window');
@@ -94,7 +94,9 @@ const options = [
 ];
 
 const TimesheetScreen = () => {
-  const [activeTab, setActiveTab] = useState<'SUMMARY' | 'CREATE'>('SUMMARY');
+  const route = useRoute<ViewExpenseRouteProp>();
+  const defaultTab = route.params?.defaultTab ?? 'SUMMARY';
+  const [activeTab, setActiveTab] = useState<'SUMMARY' | 'CREATE'>(defaultTab);
   const [isCalendarVisible, setIsCalendarVisible] = useState(false);
   const [isYearPickerVisible, setIsYearPickerVisible] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState('Jul');
@@ -180,7 +182,7 @@ const TimesheetScreen = () => {
                   label="Week"
                   showLabel={false}
                   selectedValue={selectedWeek}
-                  onValueChange={setSelectedWeek}
+                  onValueChange={value => setSelectedWeek(String(value))}
                   options={options}
                 />
               </View>
@@ -341,6 +343,12 @@ const TimesheetScreen = () => {
               </View>
             ))}
           </ScrollView>
+          <TouchableOpacity
+            // onPress={handleApplyExpense}
+            style={styles.createButton}
+          >
+            <Text style={styles.createButtonText}>SUBMIT FOR APPROVAL</Text>
+          </TouchableOpacity>
         </>
       ) : (
         // CREATE Tab Content (placeholder for now)
@@ -409,6 +417,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 10,
+  },
+  createButton: {
+    backgroundColor: COLORS.primaryColor,
+    padding: 15,
+    alignItems: 'center',
+  },
+  createButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 12,
   },
   boxTitle: { color: '#fff', fontWeight: '700', fontSize: 16 },
   boxSub: { color: '#fff', fontSize: 14, marginTop: 2 },

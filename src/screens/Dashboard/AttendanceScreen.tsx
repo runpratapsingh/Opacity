@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   StyleSheet,
   Text,
@@ -14,71 +14,36 @@ import Header from '../../components/HeaderComp';
 import Icon from 'react-native-vector-icons/FontAwesome5';
 import MaterialIcon from 'react-native-vector-icons/MaterialIcons';
 import { COLORS } from '../../theme/theme';
+import { api } from '../../api';
+import { ENDPOINTS } from '../../api/Endpoints';
 
 const { height, width } = Dimensions.get('window');
 
-interface AttendanceItem {
+type AttendanceRecord = {
+  In_Lat: string;
+  In_Long: string;
+  Out_Lat: string;
+  Out_Long: string;
+  In_Id: number;
+  Emp_Id: number;
+  Emp_Name: string;
+  In_Date: string;
+  Out_Date: string;
+  In_Time: string;
+  Out_Time: string;
+  In_Address: string;
+  Out_Address: string;
+  Total_Hours: string;
+  Work_Type: string;
+};
+
+type AttendanceItem = {
   date: string;
   punchIn: string;
   punchOut: string;
   totalHours: string;
   workType: string;
-}
-
-const biometricData: AttendanceItem[] = [
-  {
-    date: '01-Jul-2025',
-    punchIn: '09:44',
-    punchOut: '18:30',
-    totalHours: '08:46',
-    workType: 'Office',
-  },
-  {
-    date: '03-Jul-2025',
-    punchIn: '09:46',
-    punchOut: '18:34',
-    totalHours: '08:47',
-    workType: 'Office',
-  },
-  {
-    date: '04-Jul-2025',
-    punchIn: '09:42',
-    punchOut: '18:29',
-    totalHours: '08:47',
-    workType: 'Office',
-  },
-  {
-    date: '07-Jul-2025',
-    punchIn: '09:49',
-    punchOut: '18:33',
-    totalHours: '08:44',
-    workType: 'Office',
-  },
-  {
-    date: '08-Jul-2025',
-    punchIn: '10:49',
-    punchOut: '18:34',
-    totalHours: '07:45',
-    workType: 'Office',
-  },
-];
-
-const opacityData: AttendanceItem[] = [
-  {
-    date: '02-Jul-2025',
-    punchIn: '10:00',
-    punchOut: '18:00',
-    totalHours: '08:00',
-    workType: 'Remote',
-  },
-  {
-    date: '05-Jul-2025',
-    punchIn: '10:15',
-    punchOut: '18:15',
-    totalHours: '08:00',
-    workType: 'Remote',
-  },
-];
+};
 
 const months = [
   'Jan',
@@ -94,15 +59,21 @@ const months = [
   'Nov',
   'Dec',
 ];
-
-// Get the current year
-const currentYear = new Date().getFullYear();
-
-// Generate an array of years from 2008 to the current year
+const TodayDate = new Date();
+const currentYear = TodayDate.getFullYear();
 const years = Array.from(
   { length: currentYear - 2008 + 1 },
   (_, i) => 2008 + i,
 );
+
+const formatDate = (dateString: string): string => {
+  const date = new Date(dateString);
+  return date.toLocaleDateString('en-US', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
+};
 
 const AttendanceCard = ({ item }: { item: AttendanceItem }) => (
   <View style={styles.card}>
@@ -130,7 +101,7 @@ const AttendanceCard = ({ item }: { item: AttendanceItem }) => (
         <MaterialIcon name="work" size={16} color="#444" />
         <Text style={styles.timeLabel}>Work Type</Text>
         <Text style={[styles.timeValue, { color: '#FF9800' }]}>
-          {item.workType}
+          {item.workType === 'Work From Home' ? 'WFH' : item.workType}
         </Text>
       </View>
     </View>
@@ -149,8 +120,47 @@ const AttendanceScreen = () => {
   );
   const [isCalendarVisible, setIsCalendarVisible] = useState(false);
   const [isYearPickerVisible, setIsYearPickerVisible] = useState(false);
-  const [selectedMonth, setSelectedMonth] = useState('Jul');
-  const [selectedYear, setSelectedYear] = useState(2025);
+  const [selectedMonth, setSelectedMonth] = useState(
+    TodayDate.toLocaleString('default', { month: 'short' }),
+  );
+  const [selectedYear, setSelectedYear] = useState(currentYear);
+  const [biometricData, setBiometricData] = useState<AttendanceItem[]>([]);
+  const [opacityData, setOpacityData] = useState<AttendanceItem[]>([]);
+
+  const fetchAttendanceData = async () => {
+    try {
+      const response = await api.get(ENDPOINTS.CHECK_IN_OUT_HISTORY, {
+        params: {
+          Emp_id: 90,
+          month: months.indexOf(selectedMonth) + 1,
+          year: selectedYear,
+        },
+      });
+
+      const { Opacity, Biometric } = response.data;
+
+      const mapAttendanceData = (
+        data: AttendanceRecord[],
+      ): AttendanceItem[] => {
+        return data.map(item => ({
+          date: item.In_Date,
+          punchIn: item.In_Time,
+          punchOut: item.Out_Time,
+          totalHours: item.Total_Hours,
+          workType: item.Work_Type,
+        }));
+      };
+
+      setBiometricData(mapAttendanceData(Biometric));
+      setOpacityData(mapAttendanceData(Opacity));
+    } catch (error) {
+      console.log('Error in fetching the attendance data', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchAttendanceData();
+  }, [selectedYear, selectedMonth]);
 
   const handleCalendarPress = () => {
     setIsCalendarVisible(!isCalendarVisible);
@@ -158,6 +168,7 @@ const AttendanceScreen = () => {
 
   const handleMonthSelect = (month: string) => {
     setSelectedMonth(month);
+    setIsCalendarVisible(false);
   };
 
   const handleYearSelect = (year: number) => {
@@ -203,7 +214,6 @@ const AttendanceScreen = () => {
                 </Text>
               </TouchableOpacity>
             </View>
-
             {isYearPickerVisible ? (
               <ScrollView style={styles.yearList}>
                 {years.reverse().map((year, index) => (
@@ -239,7 +249,6 @@ const AttendanceScreen = () => {
                 ))}
               </View>
             )}
-
             <View style={styles.modalButtons}>
               <TouchableOpacity onPress={() => setIsCalendarVisible(false)}>
                 <Text style={styles.buttonText}>CANCEL</Text>
@@ -268,7 +277,7 @@ const AttendanceScreen = () => {
         </TouchableOpacity>
       </View>
       <FlatList
-        data={currentData}
+        data={currentData.reverse()}
         keyExtractor={(_, index) => index.toString()}
         renderItem={({ item }) => <AttendanceCard item={item} />}
         contentContainerStyle={{ padding: 10 }}
@@ -301,7 +310,6 @@ const styles = StyleSheet.create({
     fontSize: 24,
     textAlign: 'center',
     color: COLORS.primaryWhiteHex,
-    // marginBottom: 20,
   },
   yearList: {
     maxHeight: 200,
@@ -333,6 +341,9 @@ const styles = StyleSheet.create({
   },
   monthText: {
     fontSize: 18,
+  },
+  selectedMonthText: {
+    color: COLORS.primaryWhiteHex,
   },
   modalButtons: {
     flexDirection: 'row',
@@ -408,12 +419,12 @@ const styles = StyleSheet.create({
     marginVertical: 4,
   },
   timeLabel: {
-    fontSize: 14,
+    fontSize: 11,
     color: '#555',
     marginLeft: 6,
   },
   timeValue: {
-    fontSize: 14,
+    fontSize: 11,
     fontWeight: 'bold',
     color: '#76C7AC',
     marginLeft: 6,
@@ -425,9 +436,6 @@ const styles = StyleSheet.create({
     padding: 2,
     bottom: 10,
     right: 10,
-  },
-  selectedMonthText: {
-    color: COLORS.primaryWhiteHex,
   },
 });
 

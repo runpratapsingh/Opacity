@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -6,22 +6,13 @@ import {
   TextInput,
   TouchableOpacity,
   ScrollView,
+  Alert,
 } from 'react-native';
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
 import CustomDropdown from '../../../components/CustumDropdown';
-
-// Define dropdown options
-const workTypeOptions = [
-  { id: '1', name: 'Development' },
-  { id: '2', name: 'Testing' },
-  { id: '3', name: 'Design' },
-];
-
-const projectOptions = [
-  { id: '1', name: 'Navfarm' },
-  { id: '2', name: 'Health2Mama' },
-  { id: '3', name: 'E-Commerce App' },
-];
+import { api } from '../../../api';
+import { ENDPOINTS } from '../../../api/Endpoints';
+import { getUserData } from '../../../utils/StorageManager';
 
 const subTaskOptions = [
   { id: '1', name: 'Frontend UI' },
@@ -49,9 +40,13 @@ const CreateScreen = () => {
   );
 
   const [workType, setWorkType] = useState('');
+  const [workTypeOptions, setWorkTypeOptions] = useState([]);
   const [project, setProject] = useState('');
+  const [projectOptions, setProjectOptions] = useState([]);
   const [subTask, setSubTask] = useState('');
+  const [subTaskOptions, setSubTaskOptions] = useState([]);
   const [customer, setCustomer] = useState('');
+  const [customerOptions, setCustomerOptions] = useState([]);
   const [timeFrom, setTimeFrom] = useState('');
   const [timeTo, setTimeTo] = useState('');
   const [description, setDescription] = useState('');
@@ -76,6 +71,156 @@ const CreateScreen = () => {
     setShowTimePicker(null);
   };
 
+  const getProjectDropdown = async () => {
+    try {
+      const user = await getUserData();
+      const response = await api.get(ENDPOINTS.TIMESHEET_PROJECT_LIST, {
+        params: {
+          emp_id: user?.emp_id,
+        },
+      });
+
+      if (response.data.status === 'success' && response.data.Data) {
+        const workTypes = response.data.Data || [];
+        const formattedWorkTypes = workTypes.map((work: any) => ({
+          id: work.Value,
+          name: work.Text,
+        }));
+        setProjectOptions(formattedWorkTypes);
+      } else {
+        setProjectOptions([]);
+      }
+    } catch (error) {
+      console.log('Error in getting the dropdown', error);
+    }
+  };
+  const getSubTaskDropdown = async (project: string) => {
+    try {
+      const user = await getUserData();
+      const response = await api.get(ENDPOINTS.TIMESHEET_SUBTASK_LIST, {
+        params: {
+          emp_id: user?.emp_id,
+          project_id: project,
+        },
+      });
+
+      console.log('Sub Task Response:', response.data);
+
+      if (response.data.status === 'success' && response.data.Data) {
+        const workTypes = response.data.Data || [];
+        const formattedWorkTypes = workTypes.map((work: any) => ({
+          id: { id: work.task_id, customer: work.customer_name },
+          name: work.project_name,
+        }));
+        setSubTaskOptions(formattedWorkTypes);
+      } else {
+        setSubTaskOptions([]);
+      }
+    } catch (error) {
+      console.log('Error in getting the dropdown', error);
+    }
+  };
+
+  const fetchWorkOptions = async () => {
+    try {
+      const response = await api.get(ENDPOINTS.TIMESHEET_DROPDOWN);
+
+      console.log('Work Options Response:', response.data);
+      if (response.data.status === 'success' && response.data.Data) {
+        const workTypes = response.data.Data.work_type || [];
+        const formattedWorkTypes = workTypes.map((work: any) => ({
+          id: work.Value,
+          name: work.Text,
+        }));
+        setWorkTypeOptions(formattedWorkTypes);
+      } else {
+        setWorkTypeOptions([]);
+      }
+
+      // }
+    } catch (error) {
+      console.error('Error fetching customer data:', error);
+    }
+  };
+
+  const handleProjectChange = async (projectId: string) => {
+    try {
+      setProject(projectId);
+      // Fetch and update sub-task options based on selected project
+      await getSubTaskDropdown(projectId);
+    } catch (error) {
+      console.error('Error handling project change:', error);
+    }
+  };
+  const handleWorkTypeChange = async (workTypeId: string) => {
+    try {
+      setWorkType(workTypeId);
+      // Fetch and update sub-task options based on selected work type
+      await getProjectDropdown();
+    } catch (error) {
+      console.error('Error handling work type change:', error);
+    }
+  };
+
+  useEffect(() => {
+    getProjectDropdown();
+    fetchWorkOptions();
+  }, []);
+
+  const handleSubmit = async () => {
+    try {
+      const user = await getUserData();
+      const payload = {
+        emp_id: user?.emp_id,
+        posting_date: date.toLocaleDateString('en-GB'),
+        worktype_id: workType,
+        customer_id: customer,
+        project_id: project,
+        task_status: taskStatus,
+        sub_task_id: subTask,
+        time_from:
+          workTypeOptions.find(opt => opt.id === workType)?.name ===
+            'Holiday' ||
+          workTypeOptions.find(opt => opt.id === workType)?.name === 'Leave' ||
+          workTypeOptions.find(opt => opt.id === workType)?.name ===
+            'Weekend' ||
+          workTypeOptions.find(opt => opt.id === workType)?.name === 'Comp-Off'
+            ? '00:00'
+            : `${date.toLocaleDateString('en-GB')} ${timeFrom}`,
+        time_to:
+          workTypeOptions.find(opt => opt.id === workType)?.name ===
+            'Holiday' ||
+          workTypeOptions.find(opt => opt.id === workType)?.name === 'Leave' ||
+          workTypeOptions.find(opt => opt.id === workType)?.name ===
+            'Weekend' ||
+          workTypeOptions.find(opt => opt.id === workType)?.name === 'Comp-Off'
+            ? '00:00'
+            : `${date.toLocaleDateString('en-GB')} ${timeTo}`,
+        description: description,
+      };
+
+      const response = await api.post(ENDPOINTS.TIMESHEET_CREATE, payload, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      console.log('Submit Timesheet Response:', response.data, payload);
+
+      if (response.data.status === 'success') {
+        Alert.alert(response.data.message);
+        // Optionally reset form or navigate
+      } else if (response.data.status === 'error') {
+        Alert.alert(response.data.message);
+      } else {
+        Alert.alert(response.data.message);
+      }
+    } catch (error) {
+      console.error('Error submitting timesheet:', error);
+      alert('Server is not responding');
+    }
+  };
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
       {/* Date and Work Type */}
@@ -94,7 +239,7 @@ const CreateScreen = () => {
           <CustomDropdown
             label="Work Type"
             selectedValue={workType}
-            onValueChange={setWorkType}
+            onValueChange={Value => handleWorkTypeChange(String(Value))}
             options={workTypeOptions}
           />
         </View>
@@ -116,7 +261,7 @@ const CreateScreen = () => {
       <CustomDropdown
         label="Project"
         selectedValue={project}
-        onValueChange={setProject}
+        onValueChange={value => handleProjectChange(String(value))}
         options={projectOptions}
       />
 
@@ -124,17 +269,31 @@ const CreateScreen = () => {
       <CustomDropdown
         label="Sub-Sub Task"
         selectedValue={subTask}
-        onValueChange={setSubTask}
+        onValueChange={value => {
+          setSubTask(String(value.id.toString()));
+          setCustomer(String(value.customer));
+        }}
         options={subTaskOptions}
       />
 
       {/* Customer */}
-      <CustomDropdown
+      {/* <CustomDropdown
         label="Customer"
         selectedValue={customer}
-        onValueChange={setCustomer}
+        onValueChange={value => setCustomer(String(value))}
         options={customerOptions}
-      />
+      /> */}
+
+      <View pointerEvents="none" style={{ marginVertical: 8 }}>
+        <Text style={styles.label}>Customer</Text>
+        <TextInput
+          style={[styles.textInput]}
+          placeholder="Customer"
+          placeholderTextColor={'#555'}
+          value={customer}
+          onChangeText={setCustomer}
+        />
+      </View>
 
       {/* Time From and To */}
       <View style={styles.row}>
@@ -172,6 +331,7 @@ const CreateScreen = () => {
         multiline
         numberOfLines={4}
         placeholder="Description"
+        placeholderTextColor={'#555'}
         value={description}
         onChangeText={setDescription}
       />
@@ -180,12 +340,12 @@ const CreateScreen = () => {
       <CustomDropdown
         label="Task status"
         selectedValue={taskStatus}
-        onValueChange={setTaskStatus}
+        onValueChange={value => setTaskStatus(String(value))}
         options={taskStatusOptions}
       />
 
       {/* Submit Button */}
-      <TouchableOpacity style={styles.submitBtn}>
+      <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit}>
         <Text style={styles.submitText}>SUBMIT</Text>
       </TouchableOpacity>
     </ScrollView>

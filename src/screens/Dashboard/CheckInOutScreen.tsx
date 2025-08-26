@@ -6,83 +6,287 @@ import {
   TouchableOpacity,
   ScrollView,
   StyleSheet,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
-import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
+import Header from '../../components/HeaderComp';
+import { api } from '../../api';
+import { ENDPOINTS } from '../../api/Endpoints';
+import { getUserData } from '../../utils/StorageManager';
 import CustomDropdown from '../../components/CustumDropdown';
-import { useNavigation } from '@react-navigation/native';
+import { useIsFocused, useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../navigation/StackNavigator';
-import Header from '../../components/HeaderComp';
+
+type DashboardScreenNavigationProp = StackNavigationProp<
+  RootStackParamList,
+  'Dashboard'
+>;
 
 const CheckInScreen: React.FC = () => {
-  const [work, setWork] = useState<string>('');
-  const [description, setDescription] = useState<string>('');
-  const [currentDateTime, setCurrentDateTime] = useState<Date>(new Date());
-  const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
+  const navigation = useNavigation<DashboardScreenNavigationProp>();
 
-  // Define options for the dropdown
-  const workOptions = [
-    { id: '1', name: 'Office' },
-    { id: '2', name: 'Work From Home' },
-    { id: '3', name: 'Client Location' },
-    { id: '4', name: 'Travel Time' },
-  ];
+  const [work, setWork] = useState<string>('');
+  const [customer, setCustomer] = useState<string>('');
+  const [description, setDescription] = useState<string>('');
+  const [serverDate, setServerDate] = useState<string>('');
+  const [serverTime, setServerTime] = useState<string>('');
+  const [latitude, setLatitude] = useState<number>(28.414881);
+  const [longitude, setLongitude] = useState<number>(77.309692);
+  const [city, setCity] = useState<string>('Faridabad, Haryana, India');
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [customerOptions, setCustomerOptions] = useState<
+    Array<{ id: string; name: string }>
+  >([]);
+  const [workOptions, setWorkOptions] = useState<
+    Array<{ id: string; name: string }>
+  >([]);
+  const [isCheckedIn, setIsCheckedIn] = useState<boolean>(false);
+  const [checkInRefId, setCheckInRefId] = useState<string>('');
+  const isFocus = useIsFocused();
+
+  const getCheckInOutPastData = async () => {
+    try {
+      const userData = await getUserData();
+      const response = await api.get(ENDPOINTS.GET_CHECK_INS, {
+        params: { emp_id: userData?.emp_id },
+      });
+
+      console.log(
+        'sfkjshfsdjkfhsjkdfsd',
+        response.data,
+        response.data.Data &&
+          response.data.Data.past_checkIn &&
+          response.data.Data.past_checkIn.length > 0,
+      );
+
+      if (response.data.status === 'Success') {
+        setServerDate(response.data.ServerDate);
+        setServerTime(response.data.ServerTime);
+        if (
+          response.data.Data &&
+          response.data.Data.past_checkIn &&
+          response.data.Data.past_checkIn.length > 0
+        ) {
+          setIsCheckedIn(true);
+          console.log('jfhsajkfhaskjf');
+
+          setCheckInRefId(response.data.Data.past_checkIn[0].chk_in_id);
+          setWork(response.data.Data.past_checkIn[0].worktype_id.toString());
+          if (
+            response.data.Data.past_checkIn[0].worktype_id.toString() === '2'
+          ) {
+            setCustomer(
+              response.data.Data.past_checkIn[0].customer_id.toString(),
+            );
+          }
+          setDescription(response.data.Data.past_checkIn[0].remark);
+        }
+      } else {
+        setIsCheckedIn(false);
+      }
+    } catch (error) {
+      console.error('Error fetching check-in/out data:', error);
+    }
+  };
+
+  const fetchCustomerOptions = async () => {
+    try {
+      const user = await getUserData();
+      console.log('User from storage:', user);
+      const response = await api.get(ENDPOINTS.TIMESHEET_DROPDOWN, {
+        // params: {
+        //   emp_id: user?.emp_id,
+        // },
+      });
+
+      console.log('Customer Options Response:', response.data);
+      if (response.data.status === 'success' && response.data.Data) {
+        const customers = response.data.Data.customer || [];
+        const formattedCustomers = customers.map((cust: any) => ({
+          id: cust.Value,
+          name: cust.Text,
+        }));
+        setCustomerOptions(formattedCustomers);
+      } else {
+        setCustomerOptions([]);
+      }
+
+      // }
+    } catch (error) {
+      console.error('Error fetching customer data:', error);
+    }
+  };
+  const fetchWorkOptions = async () => {
+    try {
+      const response = await api.get(ENDPOINTS.TIMESHEET_DROPDOWN);
+
+      console.log('Work Options Response:', response.data);
+      if (response.data.status === 'success' && response.data.Data) {
+        const workTypes = response.data.Data.work_type || [];
+        const formattedWorkTypes = workTypes.map((work: any) => ({
+          id: work.Value,
+          name: work.Text,
+        }));
+        setWorkOptions(formattedWorkTypes);
+      } else {
+        setCustomerOptions([]);
+      }
+
+      // }
+    } catch (error) {
+      console.error('Error fetching customer data:', error);
+    }
+  };
 
   useEffect(() => {
-    // Set the initial date and time
-    setCurrentDateTime(new Date());
-  }, []);
+    getCheckInOutPastData();
+    fetchWorkOptions();
+  }, [isFocus]);
 
-  const handleBackPress = () => {
-    navigation.goBack();
-  };
+  useEffect(() => {
+    if (work === '2') {
+      fetchCustomerOptions();
+    }
+  }, [work]);
 
   const handleRefresh = () => {
-    // Update the current date and time
-    setCurrentDateTime(new Date());
+    getCheckInOutPastData();
   };
 
-  const formatDate = (date: Date): string => {
-    const day = date.getDate();
-    const month = date
-      .toLocaleString('default', { month: 'short' })
-      .toUpperCase();
-    const year = date.getFullYear();
-    return `${day} ${month}, ${year}`;
+  const callCheckInApi = async () => {
+    if (latitude === 0.0 && longitude === 0.0) {
+      Alert.alert(
+        'Error',
+        'Location is not detecting. Please press the reload button.',
+      );
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const userData = await getUserData();
+      const response = await api.post(ENDPOINTS.CHECK_IN, {
+        Chk_in_id: 0,
+        Emp_id: userData?.emp_id,
+        Chk_in_lat: latitude.toString(),
+        Chk_in_long: longitude.toString(),
+        location: city,
+        Chk_in_date: serverTime,
+        worktype_id: work,
+        customer_id: work === '8' ? '113' : customer,
+        project_id: work === '8' ? '65' : '0',
+        remark: description,
+      });
+
+      console.log('fkjskfjskfdkfd', ENDPOINTS.CHECK_IN, {
+        Chk_in_id: 0,
+        Emp_id: userData?.emp_id,
+        Chk_in_lat: latitude.toString(),
+        Chk_in_long: longitude.toString(),
+        location: city,
+        Chk_in_date: serverTime,
+        worktype_id: work,
+        customer_id: work === '8' ? '113' : customer,
+        project_id: work === '8' ? '65' : '0',
+        remark: description,
+      });
+
+      if (response.data.status === 'Success') {
+        Alert.alert('Success', 'Check-in successful');
+        setIsCheckedIn(true);
+      } else {
+        Alert.alert('Error', response.data.message || 'Please try again');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Server is not responding');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const formatTime = (date: Date): string => {
-    let hours = date.getHours();
-    const minutes = date.getMinutes().toString().padStart(2, '0');
-    const ampm = hours >= 12 ? 'PM' : 'AM';
-    hours = hours % 12;
-    hours = hours ? hours : 12; // the hour '0' should be '12'
-    return `${hours}:${minutes} ${ampm}`;
+  const callCheckOutApi = async () => {
+    if (latitude === 0.0 && longitude === 0.0) {
+      Alert.alert(
+        'Error',
+        'Location is not detecting. Please press the reload button.',
+      );
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const userData = await getUserData();
+      const response = await api.post(ENDPOINTS.CHECK_OUT, {
+        Chk_in_id: checkInRefId,
+        Emp_id: userData?.emp_id,
+        Chk_out_lat: latitude.toString(),
+        Chk_out_long: longitude.toString(),
+        location: city,
+        Chk_out_date: serverTime,
+        worktype_id: work,
+        customer_id: work === '8' ? '113' : customer,
+        project_id: work === '8' ? '65' : '0',
+        remark: description,
+      });
+
+      console.log('dkljdskdjslkdjs CheckOut', response.data, {
+        Chk_in_id: checkInRefId,
+        Emp_id: userData?.emp_id,
+        Chk_out_lat: latitude.toString(),
+        Chk_out_long: longitude.toString(),
+        location: city,
+        Chk_out_date: serverTime,
+        worktype_id: work,
+        customer_id: work === '8' ? '113' : customer,
+        project_id: work === '8' ? '65' : '0',
+        remark: description,
+      });
+
+      if (response.data.status === 'success') {
+        // setIsCheckedIn(true);
+
+        Alert.alert(
+          'Success',
+          'Check-out successful',
+          [
+            {
+              text: 'OK',
+              onPress: () => navigation.goBack(), // 👈 Go back when OK pressed
+            },
+          ],
+          { cancelable: false },
+        );
+      } else {
+        Alert.alert('Error', response.data.message || 'Please try again');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Server is not responding');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      {/* Header */}
       <Header
-        title="Check In"
+        title={isCheckedIn ? 'Check Out' : 'Check In'}
         rightIconName="refresh"
         onRightIconPress={handleRefresh}
       />
-
-      {/* Date and Time */}
       <View style={styles.row}>
         <View style={styles.dateTimeBox}>
           <FontAwesome5 name="calendar-alt" size={18} color="#4158F4" />
-          <Text style={styles.dateTimeText}>{formatDate(currentDateTime)}</Text>
+          <Text style={styles.dateTimeText}>{serverDate || ''}</Text>
         </View>
         <View style={styles.dateTimeBox}>
           <FontAwesome5 name="clock" size={18} color="#4158F4" />
-          <Text style={styles.dateTimeText}>{formatTime(currentDateTime)}</Text>
+          <Text style={styles.dateTimeText}>{serverTime || ''}</Text>
         </View>
       </View>
-
-      {/* Work Dropdown */}
       <View style={{ marginHorizontal: 10 }}>
         <CustomDropdown
           label="Select Work"
@@ -94,8 +298,19 @@ const CheckInScreen: React.FC = () => {
           showLabel={false}
         />
       </View>
-
-      {/* Description */}
+      {work === '2' && (
+        <View style={{ marginHorizontal: 10 }}>
+          <CustomDropdown
+            label="Select Customer"
+            selectedValue={customer}
+            onValueChange={itemId => setCustomer(itemId.toString())}
+            placeholder="Select Customer"
+            options={customerOptions}
+            loading={false}
+            showLabel={false}
+          />
+        </View>
+      )}
       <TextInput
         placeholder="Description"
         placeholderTextColor={'#555'}
@@ -105,12 +320,11 @@ const CheckInScreen: React.FC = () => {
         value={description}
         onChangeText={setDescription}
       />
-
-      {/* Location Box */}
       <View style={styles.locationRow}>
         <View style={styles.locationBox}>
           <Text style={styles.locationText}>
-            Faridabad 121010 20, Ekta Nagar, Faridabad, Haryana 121010, India
+            {city ||
+              'Faridabad 121010, Ekta Nagar, Faridabad, Haryana 121010, India'}
           </Text>
         </View>
         <TouchableOpacity style={styles.mapButton}>
@@ -118,15 +332,21 @@ const CheckInScreen: React.FC = () => {
           <Text style={styles.mapText}>View Map</Text>
         </TouchableOpacity>
       </View>
-
-      {/* History Link */}
       <TouchableOpacity>
         <Text style={styles.historyLink}>View History</Text>
       </TouchableOpacity>
-
-      {/* Check In Button */}
-      <TouchableOpacity style={styles.checkInButton}>
-        <Text style={styles.checkInText}>CHECK IN</Text>
+      <TouchableOpacity
+        style={styles.checkInButton}
+        onPress={isCheckedIn ? callCheckOutApi : callCheckInApi}
+        disabled={isLoading}
+      >
+        {isLoading ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={styles.checkInText}>
+            {isCheckedIn ? 'CHECK OUT' : 'CHECK IN'}
+          </Text>
+        )}
       </TouchableOpacity>
     </ScrollView>
   );
@@ -136,20 +356,6 @@ const styles = StyleSheet.create({
   container: {
     backgroundColor: '#f5f5f5',
     flexGrow: 1,
-  },
-  header: {
-    backgroundColor: '#4158F4',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 10,
-    marginBottom: 20,
-  },
-  headerTitle: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '600',
   },
   row: {
     flexDirection: 'row',
@@ -184,15 +390,6 @@ const styles = StyleSheet.create({
     marginHorizontal: 10,
     marginBottom: 16,
     elevation: 1,
-  },
-  input: {
-    flex: 1,
-    fontSize: 16,
-    marginLeft: 10,
-    color: '#333',
-  },
-  iconLeft: {
-    marginRight: 8,
   },
   textArea: {
     height: 100,

@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Animated,
   Dimensions,
+  StatusBar,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 
@@ -55,6 +56,7 @@ const CustomModal: React.FC<Props> = ({
 
   return (
     <Modal transparent visible={visible} animationType="fade">
+      <StatusBar barStyle="light-content" backgroundColor={'rgba(0,0,0,0.5)'} />
       <View style={styles.overlay}>
         <Animated.View
           style={[styles.modalContainer, { transform: [{ scale: scaleAnim }] }]}

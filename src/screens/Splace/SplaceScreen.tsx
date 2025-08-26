@@ -88,6 +88,7 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { useNavigation } from '@react-navigation/native';
 import { RootStackParamList } from '../../navigation/StackNavigator';
 import { StatusBar } from 'react-native';
+import { isUserAuthorized } from '../../utils/StorageManager';
 
 const SplashScreen: React.FC = () => {
   const opacity = useRef(new Animated.Value(0)).current;
@@ -100,16 +101,21 @@ const SplashScreen: React.FC = () => {
       duration: 1000,
       useNativeDriver: true,
     }).start(() => {
-      // Stay visible for 2 seconds
-      setTimeout(() => {
+      // Wait 2 seconds while visible
+      setTimeout(async () => {
         // Fade Out
         Animated.timing(opacity, {
           toValue: 0,
           duration: 1000,
           useNativeDriver: true,
-        }).start(() => {
-          // Navigate after fade out
-          navigation.replace('Login'); // or navigation.navigate()
+        }).start(async () => {
+          // Check if user is authorized
+          const isUserAuth: boolean = await isUserAuthorized();
+          if (isUserAuth) {
+            navigation.replace('Dashboard');
+          } else {
+            navigation.replace('Login');
+          }
         });
       }, 2000);
     });

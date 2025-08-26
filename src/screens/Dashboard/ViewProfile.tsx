@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -7,25 +7,67 @@ import {
   Linking,
   TouchableOpacity,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { COLORS } from '../../theme/theme';
 import Header from '../../components/HeaderComp';
+import { api } from '../../api';
+import { ENDPOINTS } from '../../api/Endpoints';
+
+type EmployeeDetails = {
+  emp_id: number;
+  first_name: string;
+  middle_name: string;
+  last_name: string;
+  emp_code: string;
+  email: string;
+  dob: string; // Format: "DD-MM-YYYY HH:mm:ss" — consider converting to Date if needed
+  doj: string; // Same as above
+  designation: string;
+  image: string;
+  department_id: number;
+  department: string;
+  manager: string;
+  manager_id: number;
+  contact_number: string;
+  gender: 'Male' | 'Female' | string; // Add more values if applicable
+  gender_id: number;
+};
 
 const EmployeeProfileScreen = () => {
   const navigation = useNavigation();
+  const [employee, setEmployee] = useState<EmployeeDetails>();
+  const route = useRoute();
+  const { emp_id } = route.params;
 
-  const employee = {
-    name: 'Anubhav Maheshwari',
-    empId: 'P0012',
-    email: 'anubhav@prudencesoftech.com',
-    gender: 'Male',
-    phone: '9811168227',
-    designation: 'Managing Director',
-    department: 'Common',
-    manager: 'No Manager',
-    image: 'https://i.ibb.co/SXRq8c4/sample-profile.jpg', // Replace with real image URL
+  const fetchProfileData = async () => {
+    try {
+      const response = await api.get(ENDPOINTS.EMPLOYEE_PROFILE, {
+        params: {
+          emp_id: emp_id,
+        },
+      });
+
+      if (response.data.status === 'success') {
+        console.log('inside');
+
+        setEmployee(response.data.Data[0]);
+      }
+
+      console.log(
+        'res=============>View profile',
+        response.data.Data[0],
+        response,
+        response.data.status,
+      );
+    } catch (error) {
+      console.log('Error in viewProfile API', error);
+    }
   };
+
+  useEffect(() => {
+    fetchProfileData();
+  }, []);
 
   return (
     <View style={styles.container}>
@@ -38,23 +80,25 @@ const EmployeeProfileScreen = () => {
           source={require('../../assets/male_placeholder.png')}
           style={styles.profileImage}
         />
-        <Text style={styles.name}>{employee.name}</Text>
-        <Text style={styles.empId}>{employee.empId}</Text>
+        <Text
+          style={styles.name}
+        >{`${employee?.first_name} ${employee?.last_name}`}</Text>
+        <Text style={styles.empId}>{employee?.emp_id}</Text>
       </View>
 
       {/* Details */}
       <View style={styles.infoBox}>
-        <LabelValue label="Email Id:" value={employee.email} isLink />
-        <LabelValue label="Gender:" value={employee.gender} />
+        <LabelValue label="Email Id:" value={employee?.email} isLink />
+        <LabelValue label="Gender:" value={employee?.gender} />
         <LabelValue
           label="Contact Number:"
-          value={employee.phone}
+          value={employee?.contact_number}
           isLink
           phone
         />
-        <LabelValue label="Designation:" value={employee.designation} />
-        <LabelValue label="Department:" value={employee.department} />
-        <LabelValue label="Reporting Manager:" value={employee.manager} />
+        <LabelValue label="Designation:" value={employee?.designation} />
+        <LabelValue label="Department:" value={employee?.department} />
+        <LabelValue label="Reporting Manager:" value={employee?.manager} />
       </View>
     </View>
   );
@@ -74,6 +118,14 @@ const LabelValue = ({ label, value, isLink = false, phone = false }) => {
       <TouchableOpacity onPress={handlePress} disabled={!isLink}>
         <Text style={[styles.value, isLink && styles.link]}>{value}</Text>
       </TouchableOpacity>
+      <View
+        style={{
+          borderBottomColor: 'gray',
+          borderBottomWidth: 0.3,
+          marginTop: 10,
+          marginHorizontal: -40,
+        }}
+      ></View>
     </View>
   );
 };
@@ -135,8 +187,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   value: {
-    fontSize: 15,
-    color: '#000',
+    fontSize: 14,
+    color: '#999',
     marginTop: 2,
   },
   link: {
