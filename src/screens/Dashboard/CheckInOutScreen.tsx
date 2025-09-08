@@ -8,17 +8,21 @@ import {
   StyleSheet,
   Alert,
   ActivityIndicator,
+  Platform,
+  PermissionsAndroid,
 } from 'react-native';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
 import Header from '../../components/HeaderComp';
-import { api } from '../../api';
+import { api, BASE_URL, HEADERS } from '../../api';
 import { ENDPOINTS } from '../../api/Endpoints';
 import { getUserData } from '../../utils/StorageManager';
 import CustomDropdown from '../../components/CustumDropdown';
 import { useIsFocused, useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../navigation/StackNavigator';
-
+import axios from 'axios';
+import Geolocation from 'react-native-geolocation-service';
+const GOOGLE_API_KEY = 'AIzaSyAFnBkU725a9jAMm4JCE5rnHOM20z9H2YE';
 type DashboardScreenNavigationProp = StackNavigationProp<
   RootStackParamList,
   'Dashboard'
@@ -34,7 +38,9 @@ const CheckInScreen: React.FC = () => {
   const [serverTime, setServerTime] = useState<string>('');
   const [latitude, setLatitude] = useState<number>(28.414881);
   const [longitude, setLongitude] = useState<number>(77.309692);
-  const [city, setCity] = useState<string>('Faridabad, Haryana, India');
+  const [city, setCity] = useState<string>(
+    'Faridabad 121010, Ekta Nagar, Faridabad, Haryana 121010, India',
+  );
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [customerOptions, setCustomerOptions] = useState<
     Array<{ id: string; name: string }>
@@ -45,6 +51,67 @@ const CheckInScreen: React.FC = () => {
   const [isCheckedIn, setIsCheckedIn] = useState<boolean>(false);
   const [checkInRefId, setCheckInRefId] = useState<string>('');
   const isFocus = useIsFocused();
+
+  const [location, setLocation] = useState<{ lat: number; lng: number } | null>(
+    null,
+  );
+  const [address, setAddress] = useState('');
+
+  const requestLocationPermission = async () => {
+    if (Platform.OS === 'android') {
+      const granted = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+      );
+      return granted === PermissionsAndroid.RESULTS.GRANTED;
+    }
+    return true;
+  };
+
+  const getLocation = async () => {
+    try {
+      const hasPermission = await requestLocationPermission();
+      if (!hasPermission) return;
+
+      Geolocation.getCurrentPosition(
+        async position => {
+          const { latitude, longitude } = position.coords;
+          setLocation({ lat: latitude, lng: longitude });
+
+          try {
+            const response = await axios.get(
+              `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${GOOGLE_API_KEY}`,
+            );
+
+            console.log('hjhgdajhgdashfsa', response.data);
+
+            if (response.data.results.length > 0) {
+              setAddress(response.data.results[0].formatted_address);
+            }
+          } catch (error) {
+            console.log('Error fetching address:', error);
+          }
+        },
+        error => {
+          console.log(error.code, error.message);
+        },
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 },
+      );
+    } catch (error) {
+      console.log('fsjdhfkjsdfgshfhfsdfsdfds', error);
+    }
+  };
+
+  useEffect(() => {
+    getLocation();
+  }, []);
+
+  const getFormattedCurrentDate = () => {
+    const date = new Date();
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = date.toLocaleString('en-US', { month: 'short' }); // Aug
+    const year = date.getFullYear();
+    return `${day}-${month}-${year}`;
+  };
 
   const getCheckInOutPastData = async () => {
     try {
@@ -95,10 +162,21 @@ const CheckInScreen: React.FC = () => {
     try {
       const user = await getUserData();
       console.log('User from storage:', user);
-      const response = await api.get(ENDPOINTS.TIMESHEET_DROPDOWN, {
-        // params: {
-        //   emp_id: user?.emp_id,
-        // },
+      // const response = await api.get(ENDPOINTS.TIMESHEET_DROPDOWN, {
+      //   // params: {
+      //   //   emp_id: user?.emp_id,
+      //   // },
+      // });
+
+      const response = await axios({
+        method: 'POST',
+        url: `${BASE_URL}${ENDPOINTS.TIMESHEET_DROPDOWN}`,
+        headers: HEADERS,
+        params: {
+          comeFrom: 'CheckInOut',
+          PostingDate: getFormattedCurrentDate(),
+          emp_id: user?.emp_id,
+        },
       });
 
       console.log('Customer Options Response:', response.data);
@@ -120,7 +198,26 @@ const CheckInScreen: React.FC = () => {
   };
   const fetchWorkOptions = async () => {
     try {
-      const response = await api.get(ENDPOINTS.TIMESHEET_DROPDOWN);
+      const userData = await getUserData();
+      // const response = await api.post(ENDPOINTS.TIMESHEET_DROPDOWN, {
+      //   params: {
+      //     comeFrom: 'CheckInOut',
+      //     PostingDate: getFormattedCurrentDate(),
+      //     emp_id: userData?.emp_id,
+      //   },
+      // });
+
+      const response = await axios({
+        method: 'POST',
+        // url: 'http://apiotstest.prudencesoftech.in/api/binddropdown/CustomerList',
+        url: `${BASE_URL}${ENDPOINTS.TIMESHEET_DROPDOWN}`,
+        headers: HEADERS,
+        params: {
+          comeFrom: 'CheckInOut',
+          PostingDate: getFormattedCurrentDate(),
+          emp_id: userData?.emp_id,
+        },
+      });
 
       console.log('Work Options Response:', response.data);
       if (response.data.status === 'success' && response.data.Data) {
@@ -136,7 +233,7 @@ const CheckInScreen: React.FC = () => {
 
       // }
     } catch (error) {
-      console.error('Error fetching customer data:', error);
+      console.error('Error fetching workoption data:', error);
     }
   };
 
@@ -161,6 +258,11 @@ const CheckInScreen: React.FC = () => {
         'Error',
         'Location is not detecting. Please press the reload button.',
       );
+      return;
+    }
+
+    if (work == '') {
+      Alert.alert('Error', 'Please select a work type.');
       return;
     }
 
@@ -195,7 +297,18 @@ const CheckInScreen: React.FC = () => {
       });
 
       if (response.data.status === 'Success') {
-        Alert.alert('Success', 'Check-in successful');
+        // Alert.alert('Success', 'Check-in successful');
+        Alert.alert(
+          'Success',
+          'Check-in successful',
+          [
+            {
+              text: 'OK',
+              onPress: () => navigation.goBack(), // 👈 Go back when OK pressed
+            },
+          ],
+          { cancelable: false },
+        );
         setIsCheckedIn(true);
       } else {
         Alert.alert('Error', response.data.message || 'Please try again');
@@ -287,7 +400,10 @@ const CheckInScreen: React.FC = () => {
           <Text style={styles.dateTimeText}>{serverTime || ''}</Text>
         </View>
       </View>
-      <View style={{ marginHorizontal: 10 }}>
+      <View
+        pointerEvents={isCheckedIn ? 'none' : 'auto'}
+        style={{ marginHorizontal: 10 }}
+      >
         <CustomDropdown
           label="Select Work"
           selectedValue={work}
@@ -319,6 +435,7 @@ const CheckInScreen: React.FC = () => {
         numberOfLines={4}
         value={description}
         onChangeText={setDescription}
+        editable={!isCheckedIn}
       />
       <View style={styles.locationRow}>
         <View style={styles.locationBox}>
@@ -390,6 +507,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 10,
     marginBottom: 16,
     elevation: 1,
+    color: '#444',
   },
   textArea: {
     height: 100,

@@ -10,9 +10,12 @@ import {
 } from 'react-native';
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
 import CustomDropdown from '../../../components/CustumDropdown';
-import { api } from '../../../api';
+import { api, BASE_URL, HEADERS } from '../../../api';
 import { ENDPOINTS } from '../../../api/Endpoints';
 import { getUserData } from '../../../utils/StorageManager';
+import { RouteProp, useRoute } from '@react-navigation/native';
+import { RootStackParamList } from '../../../navigation/StackNavigator';
+import axios from 'axios';
 
 const subTaskOptions = [
   { id: '1', name: 'Frontend UI' },
@@ -27,12 +30,14 @@ const customerOptions = [
 ];
 
 const taskStatusOptions = [
-  { id: '1', name: 'Pending' },
-  { id: '2', name: 'In Progress' },
-  { id: '3', name: 'Completed' },
+  { id: 'Open', name: 'Open' },
+  { id: 'WIP', name: 'In Progress' },
+  { id: 'Completed', name: 'Completed' },
 ];
 
 const CreateScreen = () => {
+  const route = useRoute<RouteProp<RootStackParamList, 'ViewTimeSheet'>>();
+  const { isUpdate, data, defaultTab = 'CREATE' } = route.params || {};
   const [date, setDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState<'from' | 'to' | null>(
@@ -44,8 +49,11 @@ const CreateScreen = () => {
   const [project, setProject] = useState('');
   const [projectOptions, setProjectOptions] = useState([]);
   const [subTask, setSubTask] = useState('');
+  const [subTask1, setSubTask1] = useState('');
+
   const [subTaskOptions, setSubTaskOptions] = useState([]);
   const [customer, setCustomer] = useState('');
+  const [customer_ID, setCustomer_ID] = useState('');
   const [customerOptions, setCustomerOptions] = useState([]);
   const [timeFrom, setTimeFrom] = useState('');
   const [timeTo, setTimeTo] = useState('');
@@ -58,10 +66,30 @@ const CreateScreen = () => {
     year: 'numeric',
   });
 
+  useEffect(() => {
+    getProjectDropdown();
+
+    if (isUpdate && data) {
+      setDate(new Date(data.date));
+      setWorkType(data.work_type_id.toString());
+      setProject(data.project_id.toString());
+      setCustomer(data.customer_name);
+      setCustomer_ID(data.customer_id);
+      setSubTask(data.subtask_id);
+      setSubTask1(data.subtask_id);
+      setDescription(data.description);
+      setTaskStatus(data.timesheet_status);
+      setTimeFrom(data.time_in);
+      setTimeTo(data.time_out);
+      getSubTaskDropdown(data.project_id);
+    }
+  }, [isUpdate, data]);
+
   const handleTimeConfirm = (pickedDate: Date) => {
     const formattedTime = pickedDate.toLocaleTimeString([], {
       hour: '2-digit',
       minute: '2-digit',
+      hour12: false,
     });
     if (showTimePicker === 'from') {
       setTimeFrom(formattedTime);
@@ -79,6 +107,8 @@ const CreateScreen = () => {
           emp_id: user?.emp_id,
         },
       });
+
+      console.log('Project Response:', response.data);
 
       if (response.data.status === 'success' && response.data.Data) {
         const workTypes = response.data.Data || [];
@@ -109,8 +139,13 @@ const CreateScreen = () => {
       if (response.data.status === 'success' && response.data.Data) {
         const workTypes = response.data.Data || [];
         const formattedWorkTypes = workTypes.map((work: any) => ({
-          id: { id: work.task_id, customer: work.customer_name },
-          name: work.project_name,
+          id: work.task_id, // Simple id for Dropdown
+          name: work.task,
+          customer: {
+            // Store customer info separately
+            customer_name: work.customer_name,
+            customer_id: work.customer_id,
+          },
         }));
         setSubTaskOptions(formattedWorkTypes);
       } else {
@@ -120,10 +155,28 @@ const CreateScreen = () => {
       console.log('Error in getting the dropdown', error);
     }
   };
+  const getFormattedCurrentDate = () => {
+    const date = new Date();
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = date.toLocaleString('en-US', { month: 'short' }); // Aug
+    const year = date.getFullYear();
+    return `${day}-${month}-${year}`;
+  };
 
   const fetchWorkOptions = async () => {
     try {
-      const response = await api.get(ENDPOINTS.TIMESHEET_DROPDOWN);
+      const userData = await getUserData();
+
+      const response = await axios({
+        method: 'POST',
+        url: `${BASE_URL}${ENDPOINTS.TIMESHEET_DROPDOWN}`,
+        headers: HEADERS,
+        params: {
+          comeFrom: 'timesheet',
+          PostingDate: getFormattedCurrentDate(),
+          emp_id: userData?.emp_id,
+        },
+      });
 
       console.log('Work Options Response:', response.data);
       if (response.data.status === 'success' && response.data.Data) {
@@ -139,7 +192,7 @@ const CreateScreen = () => {
 
       // }
     } catch (error) {
-      console.error('Error fetching customer data:', error);
+      console.error('Error fetching workoption data:', error);
     }
   };
 
@@ -163,21 +216,27 @@ const CreateScreen = () => {
   };
 
   useEffect(() => {
-    getProjectDropdown();
     fetchWorkOptions();
   }, []);
 
   const handleSubmit = async () => {
     try {
       const user = await getUserData();
+      const formatDate = (date: Date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}/${month}/${day}`; // YYYY/MM/DD
+      };
+
       const payload = {
         emp_id: user?.emp_id,
-        posting_date: date.toLocaleDateString('en-GB'),
+        posting_date: formatDate(date),
         worktype_id: workType,
-        customer_id: customer,
+        customer_id: customer_ID,
         project_id: project,
         task_status: taskStatus,
-        sub_task_id: subTask,
+        sub_task_id: subTask1,
         time_from:
           workTypeOptions.find(opt => opt.id === workType)?.name ===
             'Holiday' ||
@@ -186,7 +245,7 @@ const CreateScreen = () => {
             'Weekend' ||
           workTypeOptions.find(opt => opt.id === workType)?.name === 'Comp-Off'
             ? '00:00'
-            : `${date.toLocaleDateString('en-GB')} ${timeFrom}`,
+            : `${formatDate(date)} ${timeFrom}`,
         time_to:
           workTypeOptions.find(opt => opt.id === workType)?.name ===
             'Holiday' ||
@@ -195,15 +254,23 @@ const CreateScreen = () => {
             'Weekend' ||
           workTypeOptions.find(opt => opt.id === workType)?.name === 'Comp-Off'
             ? '00:00'
-            : `${date.toLocaleDateString('en-GB')} ${timeTo}`,
+            : `${formatDate(date)} ${timeTo}`,
         description: description,
       };
 
-      const response = await api.post(ENDPOINTS.TIMESHEET_CREATE, payload, {
-        headers: {
-          'Content-Type': 'application/json',
+      if (isUpdate) {
+        payload.timesheet_id = data.timesheet_id;
+      }
+
+      const response = await api.post(
+        isUpdate ? ENDPOINTS.TIMESHEET_UPDATE : ENDPOINTS.TIMESHEET_CREATE,
+        payload,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+          },
         },
-      });
+      );
 
       console.log('Submit Timesheet Response:', response.data, payload);
 
@@ -217,7 +284,18 @@ const CreateScreen = () => {
       }
     } catch (error) {
       console.error('Error submitting timesheet:', error);
-      alert('Server is not responding');
+      Alert.alert('Server is not responding');
+    }
+  };
+
+  const handleSubTasks = (value: any) => {
+    console.log('Selected Sub-Task:', value);
+    const selectedOption = subTaskOptions.find(opt => opt.id === value);
+    if (selectedOption) {
+      setSubTask(value);
+      setSubTask1(value);
+      setCustomer(selectedOption.customer.customer_name);
+      setCustomer_ID(selectedOption.customer.customer_id);
     }
   };
 
@@ -254,7 +332,8 @@ const CreateScreen = () => {
           if (selectedDate) setDate(selectedDate);
         }}
         onCancel={() => setShowDatePicker(false)}
-        isDarkModeEnabled={false}
+        isDarkModeEnabled={true}
+        maximumDate={new Date()}
       />
 
       {/* Project */}
@@ -265,14 +344,11 @@ const CreateScreen = () => {
         options={projectOptions}
       />
 
-      {/* Sub-Sub Task */}
+      {/* Sub Task */}
       <CustomDropdown
-        label="Sub-Sub Task"
+        label="Sub Task"
         selectedValue={subTask}
-        onValueChange={value => {
-          setSubTask(String(value.id.toString()));
-          setCustomer(String(value.customer));
-        }}
+        onValueChange={value => handleSubTasks(value)}
         options={subTaskOptions}
       />
 
@@ -346,7 +422,7 @@ const CreateScreen = () => {
 
       {/* Submit Button */}
       <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit}>
-        <Text style={styles.submitText}>SUBMIT</Text>
+        <Text style={styles.submitText}>{isUpdate ? 'UPDATE' : 'SUBMIT'}</Text>
       </TouchableOpacity>
     </ScrollView>
   );

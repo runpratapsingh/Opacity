@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Modal,
   View,
@@ -7,23 +7,84 @@ import {
   StyleSheet,
   StatusBar,
   Image,
+  Alert,
 } from 'react-native';
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { COLORS } from '../theme/theme';
+import { BASE_URL, HEADERSUPLOAD } from '../api';
+import { ENDPOINTS } from '../api/Endpoints';
+import axios from 'axios';
 
-const UploadInvoiceModal = ({ visible, onClose }) => {
-  const [selectedImage, setSelectedImage] = useState(null); // ⬅️ New state
-
+const UploadInvoiceModal = ({
+  visible,
+  onClose,
+  setSelectedImage,
+  selectedImage,
+  setUploadedFileName,
+}) => {
+  const [loading, setLoading] = useState(false);
+  const [image, setImage] = useState(null);
   const handleTakePhoto = () => {
     launchCamera({ mediaType: 'photo' }, response => {
       if (!response.didCancel && !response.errorCode) {
         const image = response.assets[0];
         setSelectedImage(image.uri);
         console.log('Photo taken:', image);
+        setImage(image);
         onClose();
       }
     });
+  };
+
+  useEffect(() => {
+    if (image !== null) {
+      uploadProfilePic(image);
+    }
+  }, [image]);
+
+  // ✅ Upload function
+  const uploadProfilePic = async imagePath => {
+    console.log('Uploading image:', imagePath);
+    console.log('Uploading image:', imagePath.originalPath);
+
+    try {
+      const formData = new FormData();
+      formData.append('Files', {
+        uri: image.uri,
+        name: image.fileName || `photo_${Date.now()}.jpg`,
+        type: image.type || 'image/jpeg',
+      });
+      setLoading(true);
+      const response = await axios.post(
+        `${BASE_URL}${ENDPOINTS.UPLOAD}`,
+        formData,
+        {
+          headers: HEADERSUPLOAD,
+        },
+      );
+      console.log(
+        'fskhfksjfhskjfhskj',
+        `${BASE_URL}${ENDPOINTS.UPLOAD}`,
+        formData,
+        {
+          headers: HEADERSUPLOAD,
+        },
+      );
+
+      console.log('Uploaded response:', response.data);
+      if (response.data.status === 'Success') {
+        setUploadedFileName(prev => [...prev, ...response.data.Data]);
+      } else {
+        Alert.alert('Error', response.data.message);
+      }
+    } catch (error) {
+      setLoading(false);
+      console.error('Upload error:', error);
+      Alert.alert('Error', 'File not uploaded');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSelectFile = () => {
@@ -31,6 +92,7 @@ const UploadInvoiceModal = ({ visible, onClose }) => {
       if (!response.didCancel && !response.errorCode) {
         const image = response.assets[0];
         setSelectedImage(image.uri);
+        setImage(image);
         console.log('File selected:', image);
         onClose();
       }
@@ -51,12 +113,12 @@ const UploadInvoiceModal = ({ visible, onClose }) => {
             </View>
 
             <View style={styles.optionsContainer}>
-              <TouchableOpacity style={styles.option} onPress={handleTakePhoto}>
+              {/* <TouchableOpacity style={styles.option} onPress={handleTakePhoto}>
                 <Icon name="camera-outline" size={40} color="#3366FF" />
                 <Text style={styles.optionText}>Take a Photo</Text>
               </TouchableOpacity>
 
-              <View style={styles.divider} />
+              <View style={styles.divider} /> */}
 
               <TouchableOpacity
                 style={styles.option}
@@ -69,13 +131,6 @@ const UploadInvoiceModal = ({ visible, onClose }) => {
           </View>
         </View>
       </Modal>
-      {/* Image Preview */}
-      {selectedImage && (
-        <View style={styles.previewContainer}>
-          <Text style={styles.previewLabel}>Preview:</Text>
-          <Image source={{ uri: selectedImage }} style={styles.previewImage} />
-        </View>
-      )}
     </View>
   );
 };
@@ -122,27 +177,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     marginTop: 8,
+    color: '#333',
   },
   divider: {
     width: 1,
     backgroundColor: '#ccc',
     marginHorizontal: 10,
-  },
-  previewContainer: {
-    marginTop: 16,
-    alignItems: 'flex-start',
-    paddingBottom: 16,
-  },
-  previewLabel: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    marginBottom: 8,
-  },
-  previewImage: {
-    width: 180,
-    height: 180,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#ccc',
   },
 });

@@ -33,10 +33,12 @@ export const ENDPOINTS = {
   TIMESHEET_UPDATE: '/api/timesheet/update_timesheet',
   TIMESHEET_STATUS: '/api/timesheet/timesheet_status',
   TIMESHEET_DELETE: '/api/timesheet/Delete_TimesheetEntry',
-  TIMESHEET_DROPDOWN: '/api/timesheet/binddropdown',
+  TIMESHEET_DROPDOWN: '/api/binddropdown/CustomerList',
   TIMESHEET_SUBMIT: '/api/expense/timesheet_submit',
   TIMESHEET_APPROVE: '/api/expense/timesheet_approve',
   TIMESHEET_REJECT: '/api/expense/timesheet_reject',
+  TIMESHEET_WEEKLY_SUMMARY: '/api/expense/timesheet_history',
+  TIMESHEET_DETAILS: '/api/timesheet/Timesheet_breakup',
 
   // Expense
   EXPENSE_TYPES: '/api/expense/expense_type',

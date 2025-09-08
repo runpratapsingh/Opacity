@@ -1,4 +1,4 @@
-import React, { act, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   StyleSheet,
   Text,
@@ -10,13 +10,13 @@ import {
   ScrollView,
   StatusBar,
 } from 'react-native';
-import Header from '../../components/HeaderComp';
 import Icon from 'react-native-vector-icons/FontAwesome5';
 import MaterialIcon from 'react-native-vector-icons/MaterialIcons';
-import { COLORS } from '../../theme/theme';
-import { api } from '../../api';
-import { ENDPOINTS } from '../../api/Endpoints';
-import { getUserData } from '../../utils/StorageManager';
+import { COLORS } from '../../../theme/theme';
+import { api } from '../../../api';
+import { ENDPOINTS } from '../../../api/Endpoints';
+import { getUserData } from '../../../utils/StorageManager';
+import Header from '../../../components/HeaderComp';
 
 const { height, width } = Dimensions.get('window');
 
@@ -67,15 +67,6 @@ const years = Array.from(
   (_, i) => 2008 + i,
 );
 
-const formatDate = (dateString: string): string => {
-  const date = new Date(dateString);
-  return date.toLocaleDateString('en-US', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  });
-};
-
 const AttendanceCard = ({ item }: { item: AttendanceItem }) => (
   <View style={styles.card}>
     <View style={styles.rowContainer}>
@@ -115,7 +106,7 @@ const AttendanceCard = ({ item }: { item: AttendanceItem }) => (
   </View>
 );
 
-const AttendanceScreen = () => {
+const ManagerAttendanceScreen = () => {
   const [activeTab, setActiveTab] = useState<'biometric' | 'opacity'>(
     'biometric',
   );
@@ -446,4 +437,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default AttendanceScreen;
+export default ManagerAttendanceScreen;

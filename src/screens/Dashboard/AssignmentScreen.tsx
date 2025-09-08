@@ -5,7 +5,7 @@ const AssignmentScreen = () => {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#F5F5F5" />
-      <Text style={{ fontSize: 18 }}>Coming soon...</Text>
+      <Text style={{ fontSize: 18, color: '#000' }}>Coming soon...</Text>
     </View>
   );
 };

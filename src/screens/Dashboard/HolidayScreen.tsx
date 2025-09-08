@@ -15,6 +15,7 @@ import { COLORS } from '../../theme/theme';
 import Header from '../../components/HeaderComp';
 import { api } from '../../api';
 import { ENDPOINTS } from '../../api/Endpoints';
+import Loader from '../../components/Loader';
 
 type TimeSheetScreenNavigationProp = StackNavigationProp<RootStackParamList>;
 
@@ -85,6 +86,8 @@ const HolidayScreen = () => {
         rightIconName="calendar-month"
         onRightIconPress={handleCalendarPress}
       />
+
+      <Loader visible={isLoading} />
 
       <View style={styles.tableHeader}>
         {/* <Text style={styles.tableHeaderText}>S.No.</Text> */}
@@ -231,5 +234,6 @@ const styles = StyleSheet.create({
   cell: {
     flex: 1,
     fontSize: 11,
+    color: '#333',
   },
 });

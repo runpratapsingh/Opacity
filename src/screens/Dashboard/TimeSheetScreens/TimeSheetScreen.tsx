@@ -19,6 +19,7 @@ import { RootStackParamList } from '../../../navigation/StackNavigator';
 import { api } from '../../../api';
 import { ENDPOINTS } from '../../../api/Endpoints';
 import { getUserData } from '../../../utils/StorageManager';
+import Loader from '../../../components/Loader';
 
 type TimeSheetScreenNavigationProp = StackNavigationProp<RootStackParamList>;
 
@@ -36,29 +37,15 @@ type TimesheetItem = {
   month_name: string;
   status_id: string;
   days: string;
-  status: 'NO ENTRY' | 'Approved' | 'OPEN';
+  status: 'NO ENTRY' | 'Final' | 'Open';
 };
-
-// const timesheetData: TimesheetItem[] = [
-//   { month: 'Jan-2025', totalDays: 0, status: 'NO ENTRY' },
-//   { month: 'Feb-2025', totalDays: 0, status: 'NO ENTRY' },
-//   { month: 'Mar-2025', totalDays: 18, status: 'FINAL' },
-//   { month: 'Apr-2025', totalDays: 22, status: 'FINAL' },
-//   { month: 'May-2025', totalDays: 22, status: 'FINAL' },
-//   { month: 'Jun-2025', totalDays: 21, status: 'FINAL' },
-//   { month: 'Jul-2025', totalDays: 10, status: 'OPEN' },
-//   { month: 'Aug-2025', totalDays: 0, status: 'NO ENTRY' },
-//   { month: 'Sep-2025', totalDays: 0, status: 'NO ENTRY' },
-//   { month: 'Oct-2025', totalDays: 0, status: 'NO ENTRY' },
-//   { month: 'Nov-2025', totalDays: 0, status: 'NO ENTRY' },
-//   { month: 'Dec-2025', totalDays: 0, status: 'NO ENTRY' },
-// ];
 
 const TimeSheetScreen: React.FC = () => {
   const [isYearPickerVisible, setIsYearPickerVisible] =
     useState<boolean>(false);
   const [selectedYear, setSelectedYear] = useState<number>(currentYear);
   const [timesheetData, setTimeSheetData] = useState<TimesheetItem[]>([]);
+  const [loading, setLoading] = useState<boolean>(false);
   const navigation = useNavigation<TimeSheetScreenNavigationProp>();
 
   const handleCalendarPress = (): void => {
@@ -72,9 +59,9 @@ const TimeSheetScreen: React.FC = () => {
 
   const getStatusColor = (status: TimesheetItem['status']): string => {
     switch (status) {
-      case 'Approved':
+      case 'Final':
         return '#73B376';
-      case 'OPEN':
+      case 'Open':
         return '#00BEFF';
       default:
         return '#B5BEAD';
@@ -104,7 +91,7 @@ const TimeSheetScreen: React.FC = () => {
     <View style={styles.itemContainer}>
       <Text style={styles.monthText}>{item.month_name}</Text>
       <Text style={styles.totalDaysText}>{item.days}</Text>
-      {item.status === 'Approved' || item.status === 'OPEN' ? (
+      {item.status === 'Final' || item.status === 'Open' ? (
         <TouchableOpacity
           activeOpacity={0.8}
           style={[
@@ -133,6 +120,7 @@ const TimeSheetScreen: React.FC = () => {
 
   const getTimeSheet = async () => {
     try {
+      setLoading(true);
       const user = await getUserData();
       console.log('User from storage:', user);
       const res = await api.get(ENDPOINTS.TIMESHEET_STATUS, {
@@ -149,6 +137,8 @@ const TimeSheetScreen: React.FC = () => {
       console.log('hfsjakhfkjahfkaj', res);
     } catch (error) {
       console.log('shfkjdhfksjfhskjd', error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -215,6 +205,7 @@ const TimeSheetScreen: React.FC = () => {
           </View>
         </View>
       </Modal>
+      <Loader visible={loading} />
     </View>
   );
 };
@@ -257,11 +248,13 @@ const styles = StyleSheet.create({
   },
   monthText: {
     fontSize: 12,
+    color: '#333',
     width: '30%',
     textAlign: 'center',
   },
   totalDaysText: {
     fontSize: 12,
+    color: '#333',
     width: '20%',
     textAlign: 'center',
   },
@@ -319,6 +312,7 @@ const styles = StyleSheet.create({
   },
   yearText: {
     fontSize: 18,
+    color: '#333',
   },
   modalButtons: {
     flexDirection: 'row',

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -8,66 +8,24 @@ import {
   StatusBar,
   Dimensions,
   Modal,
+  Alert,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { COLORS } from '../../../theme/theme';
 import Header from '../../../components/HeaderComp';
-import CustomDropdown from '../../../components/CustumDropdown';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../../navigation/StackNavigator';
 import { PieChart } from 'react-native-gifted-charts';
-import CreateScreen from '../TimeSheetScreens/CreateTimeSheet';
 import CreateExpense from './CreateExpense';
+import { api, BASE_URL, HEADERS } from '../../../api';
+import { ENDPOINTS } from '../../../api/Endpoints';
+import { getUserData } from '../../../utils/StorageManager';
+import axios from 'axios';
+import Loader from '../../../components/Loader';
 
 type ViewExpenseRouteProp = RouteProp<RootStackParamList, 'ViewExpenses'>;
 type TimeSheetScreenNavigationProp = StackNavigationProp<RootStackParamList>;
-
-interface TimeSheetData {
-  date: string;
-  in: string;
-  out: string;
-  total: string;
-  status: string;
-}
-
-const timesheetData: TimeSheetData[] = [
-  {
-    date: '14-Apr-2025',
-    in: '09:30',
-    out: '18:32',
-    total: '09:02',
-    status: 'Full Day',
-  },
-  {
-    date: '15-Apr-2025',
-    in: '09:25',
-    out: '18:30',
-    total: '09:05',
-    status: 'Full Day',
-  },
-  {
-    date: '16-Apr-2025',
-    in: '09:30',
-    out: '18:30',
-    total: '09:00',
-    status: 'Full Day',
-  },
-  {
-    date: '17-Apr-2025',
-    in: '09:30',
-    out: '18:30',
-    total: '09:00',
-    status: 'Full Day',
-  },
-  {
-    date: '18-Apr-2025',
-    in: '09:30',
-    out: '18:30',
-    total: '09:00',
-    status: 'Full Day',
-  },
-];
 
 type Piechart = {
   value: number;
@@ -80,38 +38,55 @@ const pieData: Piechart[] = [
   { value: 20, color: '#ED6665' },
 ];
 
+const formatDate = (dateString: string): string => {
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return dateString; // fallback
+
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = date.toLocaleString('en-US', { month: 'short' });
+    const year = date.getFullYear();
+
+    return `${day}-${month}-${year}`;
+  } catch {
+    return dateString;
+  }
+};
+
 const { height, width } = Dimensions.get('window');
 
 const Legends: React.FC<{ data: Piechart[] }> = ({ data }) => {
   return (
     <View style={styles.legendsContainer}>
-      {data.map((item: Piechart, index: number) => (
+      {data.map((item: any, index: number) => (
         <View key={index} style={styles.legendItem}>
           <View style={[styles.legendColor, { backgroundColor: item.color }]} />
-          <Text style={styles.legendText}>₹ {item.value}</Text>
-          <Text style={styles.legendText}>Approved</Text>
+          <Text style={styles.legendText}>
+            {item.label}: ₹ {item.value}
+          </Text>
         </View>
       ))}
     </View>
   );
 };
+
 const LegendsBottom: React.FC<{
-  data: Piechart[];
-  onPressLegend: (item: Piechart) => void;
+  data: any[];
+  onPressLegend: (item: any) => void;
 }> = ({ data, onPressLegend }) => {
   return (
     <View style={styles.legendsContainer}>
-      {data.map((item: Piechart, index: number) => (
+      {data.map((item: any, index: number) => (
         <TouchableOpacity
+          key={index}
           activeOpacity={0.8}
           onPress={() => onPressLegend(item)}
           style={{
-            height: 90,
-            backgroundColor: item.color,
+            height: 80,
+            backgroundColor: chartColors[index % chartColors.length],
             marginHorizontal: 10,
             borderRadius: 10,
           }}
-          key={index}
         >
           <View
             style={{
@@ -128,15 +103,19 @@ const LegendsBottom: React.FC<{
             }}
           >
             <View style={{ gap: 10 }}>
-              <Text style={{ fontWeight: 'bold', fontSize: 14 }}>
-                General Expense
+              <Text style={{ fontWeight: 'bold', fontSize: 14, color: '#333' }}>
+                {item.expense_type}
               </Text>
-              <Text style={{ color: '#777', fontSize: 12 }}>25-July-2025</Text>
+              <Text style={{ color: '#777', fontSize: 12 }}>
+                {formatDate(item.expense_date)}
+              </Text>
             </View>
             <View
               style={{ gap: 10, flexDirection: 'row', alignItems: 'center' }}
             >
-              <Text style={{ fontWeight: 'bold', fontSize: 14 }}>₹ 10</Text>
+              <Text style={{ fontWeight: 'bold', fontSize: 14, color: '#333' }}>
+                ₹ {item.expense_amount}
+              </Text>
               <Icon
                 name="alert-circle-outline"
                 size={14}
@@ -150,17 +129,58 @@ const LegendsBottom: React.FC<{
   );
 };
 
+const months = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+];
+
+const currentMonth = new Date().toLocaleString('en-US', { month: 'short' });
+const currentYearInitial = new Date().getFullYear();
+
+const chartColors = [
+  '#177AD5',
+  '#79D2DE',
+  '#ED6665',
+  '#FFB347',
+  '#6A5ACD',
+  '#2ECC71',
+  '#FF6347',
+];
+
 const ViewExpense: React.FC = () => {
   const route = useRoute<ViewExpenseRouteProp>();
   const defaultTab = route.params?.defaultTab ?? 'SUMMARY';
+  let month = null;
+  let year = null;
+  const expenseDataFromProps = route.params?.expenseData || null;
+  const isUpdated = route.params?.isUpdate || false;
+  if (defaultTab === 'SUMMARY') {
+    [month, year] = route.params?.month_name.split('-');
+    month = month || currentMonth;
+    year = year || currentYearInitial;
+  }
   const [activeTab, setActiveTab] = useState<'SUMMARY' | 'CREATE'>(defaultTab);
   const [isCalendarVisible, setIsCalendarVisible] = useState(false);
   const [isYearPickerVisible, setIsYearPickerVisible] = useState(false);
-  const [selectedMonth, setSelectedMonth] = useState('Jul');
-  const [selectedYear, setSelectedYear] = useState(2025);
-  const [isWeekPickerVisible, setIsWeekPickerVisible] = useState(false);
-  const [selectedWeek, setSelectedWeek] = useState('1');
+  const [selectedMonth, setSelectedMonth] = useState(month || currentMonth);
+  const [selectedYear, setSelectedYear] = useState(year || currentYearInitial);
   const [modalVisible, setModalVisible] = useState(false);
+  const [expenseData, setExpenseData] = useState({});
+  const [expenseTypes, setExpenseTypes] = useState<any[]>([]);
+  const [expenseHistory, setExpenseHistory] = useState<any[]>([]);
+  const [pieData, setPieData] = useState<Piechart[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [selectedExpense, setSelectedExpense] = useState<any>(null);
 
   const navigation = useNavigation<TimeSheetScreenNavigationProp>();
 
@@ -176,36 +196,108 @@ const ViewExpense: React.FC = () => {
   const handleMonthSelect = (month: string) => {
     setSelectedMonth(month);
     setIsCalendarVisible(false);
-    setIsWeekPickerVisible(true);
   };
 
-  const months = [
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec',
-  ];
+  const fetchExpenseSummary = async () => {
+    try {
+      setLoading(true);
+      const userData = await getUserData();
+      console.log('sjfkjsgfkjsgfjs', {
+        emp_id: userData?.emp_id,
+        month:
+          months.indexOf(selectedMonth) + 1 < 10
+            ? `0${months.indexOf(selectedMonth) + 1}`
+            : months.indexOf(selectedMonth) + 1,
+        year: selectedYear.toString(),
+      });
+
+      const response = await axios({
+        method: 'POST',
+        url: `${BASE_URL}${ENDPOINTS.EXPENSE_HISTORY}`,
+        data: {
+          emp_id: userData?.emp_id,
+          month:
+            months.indexOf(selectedMonth) + 1 < 10
+              ? `0${months.indexOf(selectedMonth) + 1}`
+              : months.indexOf(selectedMonth) + 1,
+          year: selectedYear.toString(),
+        },
+        headers: HEADERS,
+      });
+
+      const resData = response.data;
+
+      if (resData?.status === 'Success') {
+        const expenses = resData?.Data?.expense_types || [];
+        const history = resData?.Data?.expense_history || [];
+
+        setExpenseTypes(expenses);
+        setExpenseHistory(history);
+        setExpenseData(resData);
+
+        // Convert expense_types → pie chart data
+        const pieFormatted = expenses.map((item: any, idx: number) => ({
+          value: item.total_amount,
+          color: chartColors[idx % chartColors.length],
+          label: item.expense_name,
+          item: item,
+        }));
+
+        setPieData(pieFormatted);
+      }
+    } catch (error) {
+      console.log('Error fetching expense summary:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchExpenseSummary();
+  }, [selectedMonth, selectedYear]);
+
   const currentYear = new Date().getFullYear();
   const years = Array.from(
     { length: currentYear - 2008 + 1 },
     (_, i) => 2008 + i,
   );
-  const options = [
-    { id: '1', name: 'Week 1' },
-    { id: '2', name: 'Week 2' },
-    { id: '3', name: 'Week 3' },
-    { id: '4', name: 'Week 4' },
-    { id: '5', name: 'Week 5' },
-    { id: '6', name: 'Week 6' },
-  ];
+
+  const handleDeleteExpense = async (expense_id: number) => {
+    try {
+      const response = await api.get(ENDPOINTS.EXPENSE_DELETE, {
+        params: {
+          expense_id: expense_id,
+        },
+      });
+
+      if (response.data.status === 'Success') {
+        setModalVisible(!modalVisible);
+        navigation.navigate('Dashboard');
+      }
+
+      console.log('Delete Expense Response:', response.data);
+    } catch (error) {
+      console.log('Error in the deleting expense', error);
+    }
+  };
+
+  const confirmDeleteExpense = (expenseId: number) => {
+    Alert.alert(
+      'Delete Expense',
+      'Are you sure you want to delete this expense?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'OK',
+          onPress: () => handleDeleteExpense(expenseId),
+        },
+      ],
+      { cancelable: true },
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -224,6 +316,7 @@ const ViewExpense: React.FC = () => {
           activeTab === 'SUMMARY' ? handleCalendarPress : undefined
         }
       />
+      <Loader visible={loading} />
       <View style={styles.tabBar}>
         <TouchableOpacity
           style={styles.tabWrap}
@@ -250,12 +343,19 @@ const ViewExpense: React.FC = () => {
         <>
           <View style={styles.summaryBox}>
             <View style={styles.boxLeft}>
-              <Text style={styles.boxTitle}>Apr 2025</Text>
-              <Text style={styles.boxSub}>FINAL</Text>
+              <Text
+                style={styles.boxTitle}
+              >{`${selectedMonth} ${selectedYear}`}</Text>
+              <Text style={styles.boxSub}>
+                {' '}
+                {expenseData?.expense_status || ''}
+              </Text>
             </View>
             <View style={styles.boxRight}>
-              <Text style={styles.boxTitle}>TOTAL DAYS</Text>
-              <Text style={styles.boxSub}>5</Text>
+              <Text style={styles.boxTitle}>TOTAL (₹)</Text>
+              <Text style={styles.boxSub}>
+                {expenseData?.expense_total || ''}
+              </Text>
             </View>
           </View>
           <ScrollView contentContainerStyle={styles.scrollViewContent}>
@@ -278,14 +378,24 @@ const ViewExpense: React.FC = () => {
                 </View>
               </View>
               <LegendsBottom
-                data={pieData}
-                onPressLegend={() => setModalVisible(true)}
+                // data={pieData}
+                // onPressLegend={() => setModalVisible(true)}
+                data={expenseHistory}
+                onPressLegend={item => {
+                  console.log('Clicked item:', item);
+                  // show modal with clicked item
+                  setSelectedExpense(item);
+                  setModalVisible(true);
+                }}
               />
             </View>
           </ScrollView>
         </>
       ) : (
-        <CreateExpense />
+        <CreateExpense
+          expenseData={expenseDataFromProps}
+          isUpdate={isUpdated}
+        />
       )}
       <Modal
         animationType="fade"
@@ -355,38 +465,6 @@ const ViewExpense: React.FC = () => {
       <Modal
         animationType="fade"
         transparent={true}
-        visible={isWeekPickerVisible}
-        onRequestClose={() => setIsWeekPickerVisible(false)}
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitleText}>Search by weekly basis</Text>
-            <View style={styles.modalDropdownContainer}>
-              <Text style={styles.modalDropdownLabel}>Select Week</Text>
-              <View>
-                <CustomDropdown
-                  label="Week"
-                  showLabel={false}
-                  selectedValue={selectedWeek}
-                  onValueChange={value => setSelectedWeek(String(value))}
-                  options={options}
-                />
-              </View>
-            </View>
-            <View style={styles.modalButtons}>
-              <TouchableOpacity onPress={() => setIsWeekPickerVisible(false)}>
-                <Text style={styles.buttonText}>CANCEL</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => setIsWeekPickerVisible(false)}>
-                <Text style={styles.buttonText}>OK</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-      <Modal
-        animationType="fade"
-        transparent={true}
         visible={modalVisible}
         onRequestClose={() => {
           setModalVisible(false);
@@ -396,39 +474,92 @@ const ViewExpense: React.FC = () => {
           <View style={styles.modalView}>
             <View style={styles.modalHeader1}>
               <Text style={styles.modalHeaderText}>Expense Details</Text>
-              <TouchableOpacity
-                style={styles.closeButton}
-                onPress={() => setModalVisible(!modalVisible)}
-              >
-                <Text style={styles.closeButtonText}>X</Text>
-              </TouchableOpacity>
+              <View style={{ flexDirection: 'row', gap: 10 }}>
+                {selectedExpense &&
+                  selectedExpense.expense_Status === 'Open' && (
+                    <>
+                      <TouchableOpacity
+                        style={styles.closeButton}
+                        onPress={() => {
+                          navigation.navigate('ViewExpenses', {
+                            defaultTab: 'CREATE',
+                            expenseData: selectedExpense,
+                            isUpdate: true,
+                          });
+                          setActiveTab('CREATE');
+                          setModalVisible(false);
+                        }}
+                      >
+                        <Icon
+                          name="create-outline"
+                          size={20}
+                          color={COLORS.primaryColor}
+                        />
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.closeButton}
+                        onPress={() =>
+                          confirmDeleteExpense(selectedExpense?.expense_id)
+                        }
+                      >
+                        <Icon
+                          name="trash-outline"
+                          size={20}
+                          color={COLORS.primaryColor}
+                        />
+                      </TouchableOpacity>
+                    </>
+                  )}
+
+                <TouchableOpacity
+                  style={styles.closeButton}
+                  onPress={() => setModalVisible(!modalVisible)}
+                >
+                  <Icon
+                    name="close-outline"
+                    size={22}
+                    color={COLORS.primaryColor}
+                  />
+                </TouchableOpacity>
+              </View>
             </View>
             <View style={styles.modalContent1}>
               <View style={styles.detailRow}>
                 <Text style={styles.detailLabel}>Date:</Text>
-                <Text style={styles.detailValue}>25-Jul-2025</Text>
+                <Text style={styles.detailValue}>
+                  {formatDate(selectedExpense?.expense_date) || ''}
+                </Text>
               </View>
               <View style={styles.detailRow}>
                 <Text style={styles.detailLabel}>Project:</Text>
                 <Text style={styles.detailValue}>
-                  Biyinzika Navone (Navone/Implementation)
+                  {selectedExpense?.project_name || ''}
                 </Text>
               </View>
               <View style={styles.detailRow}>
                 <Text style={styles.detailLabel}>Expense Type:</Text>
-                <Text style={styles.detailValue}>General Expense</Text>
+                <Text style={styles.detailValue}>
+                  {selectedExpense?.expense_type || ''}
+                </Text>
               </View>
               <View style={styles.detailRow}>
                 <Text style={styles.detailLabel}>Expense Amount:</Text>
-                <Text style={styles.detailValue}>₹2.0</Text>
+                <Text style={styles.detailValue}>{`₹${
+                  selectedExpense?.expense_amount || 0
+                }`}</Text>
               </View>
               <View style={styles.detailRow}>
                 <Text style={styles.detailLabel}>Description:</Text>
-                <Text style={styles.detailValue}>Izzji</Text>
+                <Text style={styles.detailValue}>
+                  {selectedExpense?.expense_description || ''}
+                </Text>
               </View>
               <View style={styles.detailRow}>
                 <Text style={styles.detailLabel}>Attachment:</Text>
-                <Text style={styles.detailValue}>Image</Text>
+                <Text style={styles.detailValue}>
+                  {/* {selectedExpense?.filenames || ''} */}
+                  {''}
+                </Text>
               </View>
             </View>
           </View>
@@ -498,15 +629,12 @@ const styles = StyleSheet.create({
   },
   scrollViewContent: {
     flexGrow: 1,
-    // justifyContent: 'center',
-    // alignItems: 'center',
   },
   chartContainer: {
     width: '100%',
   },
   chartItem: {
     width: width,
-    // justifyContent: 'space-between',
     flexDirection: 'row',
     alignItems: 'center',
     marginVertical: 10,
@@ -518,7 +646,6 @@ const styles = StyleSheet.create({
   legendItem: {
     flexDirection: 'row',
     alignItems: 'center',
-
     justifyContent: 'space-between',
     width: '100%',
     paddingRight: 10,
@@ -532,7 +659,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#333',
   },
-
   modalContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -590,6 +716,7 @@ const styles = StyleSheet.create({
   },
   monthText: {
     fontSize: 18,
+    color: '#333',
   },
   modalButtons: {
     flexDirection: 'row',
@@ -615,14 +742,6 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     color: '#3E4ADB',
   },
-  modalDropdownContainer: {
-    marginVertical: 20,
-    paddingHorizontal: 20,
-  },
-  modalDropdownLabel: {
-    fontSize: 16,
-    marginBottom: 8,
-  },
   modalView: {
     margin: 20,
     backgroundColor: 'white',
@@ -645,18 +764,19 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
   modalHeaderText: {
-    fontSize: 20,
+    color: '#333',
+    fontSize: 16,
     fontWeight: 'bold',
   },
   closeButton: {
-    backgroundColor: COLORS.primaryColor,
+    // backgroundColor: COLORS.primaryColor,
     height: 30,
     width: 30,
     borderRadius: 15,
+    borderColor: COLORS.primaryColor,
+    borderWidth: 1,
     justifyContent: 'center',
     alignItems: 'center',
-
-    elevation: 2,
   },
   closeButtonText: {
     color: '#fff',
@@ -674,28 +794,12 @@ const styles = StyleSheet.create({
   },
   detailLabel: {
     fontWeight: 'bold',
+    color: '#333',
   },
   detailValue: {
     textAlign: 'right',
+    color: '#333',
     flex: 1,
-  },
-  openButton: {
-    backgroundColor: '#F194FF',
-    borderRadius: 20,
-    padding: 10,
-    elevation: 2,
-  },
-  openButtonText: {
-    color: 'white',
-    fontWeight: 'bold',
-    textAlign: 'center',
-  },
-  centeredView: {
-    width: width * 0.9,
-    backgroundColor: 'red',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 22,
   },
 });
 

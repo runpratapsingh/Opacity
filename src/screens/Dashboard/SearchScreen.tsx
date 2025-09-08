@@ -16,6 +16,8 @@ import { useNavigation } from '@react-navigation/native';
 import { api } from '../../api';
 import { ENDPOINTS } from '../../api/Endpoints';
 
+const ImageBaseUrl = 'http://apiotstest.prudencesoftech.in/UploadFiles/';
+
 type TimeSheetScreenNavigationProp = StackNavigationProp<RootStackParamList>;
 type Employee = {
   EMP_ID: number;
@@ -68,7 +70,14 @@ const EmployeeListScreen = () => {
     >
       {/* {item.image ? ( */}
       <Image
-        source={require('../../assets/male_placeholder.png')}
+        // source={require('../../assets/male_placeholder.png')}
+        source={
+          item.PROFILE_PIC
+            ? { uri: `${ImageBaseUrl}${item.PROFILE_PIC}` }
+            : item.GENDER === 'Female'
+            ? require('../../assets/female_placeholder.png')
+            : require('../../assets/male_placeholder.png')
+        }
         style={styles.profilePic}
       />
       {/* ) : (

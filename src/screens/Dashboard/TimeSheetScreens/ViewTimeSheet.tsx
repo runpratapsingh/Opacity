@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -17,6 +17,10 @@ import CustomDropdown from '../../../components/CustumDropdown';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../../navigation/StackNavigator';
+import { api } from '../../../api';
+import { ENDPOINTS } from '../../../api/Endpoints';
+import { getUserData } from '../../../utils/StorageManager';
+import { formatDate } from '../../../utils/utilsFn';
 
 const timesheetData = [
   {
@@ -93,20 +97,28 @@ const options = [
   { id: '6', name: 'Week 6' },
 ];
 
+const currentMonth = new Date().toLocaleString('en-US', { month: 'short' });
+
 const TimesheetScreen = () => {
   const route = useRoute<ViewExpenseRouteProp>();
   const defaultTab = route.params?.defaultTab ?? 'SUMMARY';
   const [activeTab, setActiveTab] = useState<'SUMMARY' | 'CREATE'>(defaultTab);
   const [isCalendarVisible, setIsCalendarVisible] = useState(false);
   const [isYearPickerVisible, setIsYearPickerVisible] = useState(false);
-  const [selectedMonth, setSelectedMonth] = useState('Jul');
+  const [selectedMonth, setSelectedMonth] = useState(currentMonth);
   const [selectedYear, setSelectedYear] = useState(2025);
   const [isWeekPickerVisible, setIsWeekPickerVisible] = useState(false);
   const [selectedWeek, setSelectedWeek] = useState('1');
+  const [weekOptions, setWeekOptions] = useState([]);
   const navigation = useNavigation<TimeSheetScreenNavigationProp>();
+  const [timesheetSummaryData, setTimesheetSummaryData] = useState([]);
+  const [timeSheetStatus, setTimeSheetStatus] = useState('');
 
-  const handleStatusPress = () => {
-    navigation.navigate('DaySheetDetails');
+  const handleStatusPress = item => {
+    console.log('item', item);
+    navigation.navigate('DaySheetDetails', {
+      dateDetail: formatDate(item.Punch_Time),
+    });
   };
 
   const handleMonthSelect = (month: string) => {
@@ -123,6 +135,70 @@ const TimesheetScreen = () => {
   const handleYearSelect = (year: number) => {
     setSelectedYear(year);
     setIsYearPickerVisible(false);
+  };
+
+  const fetchWeekList = async () => {
+    try {
+      const response = await api.get(ENDPOINTS.TIMESHEET_MONTHLY_WEEK_LIST, {
+        params: {
+          month_number: months.indexOf(selectedMonth) + 1,
+          year: selectedYear,
+        },
+      });
+
+      if (response.data.status === 'success') {
+        const weeks = response.data.Data;
+        const formattedWeeks = weeks.map((week: any) => ({
+          id: {
+            id: week.week_name,
+            weekData: week,
+          },
+          name: week.week_name,
+        }));
+        setWeekOptions(formattedWeeks);
+      }
+    } catch (error) {
+      console.log('Error in fetching the week list', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchWeekList();
+  }, [selectedMonth, selectedYear]);
+
+  const fetchWeeklyAttendanceSummary = async data => {
+    try {
+      const userData = await getUserData();
+      const Payload = {
+        week_start_date: data.start_date,
+        week_end_date: data.end_date,
+        month: months.indexOf(selectedMonth) + 1,
+        year: selectedYear,
+        emp_id: userData?.emp_id,
+      };
+
+      console.log('payload', Payload);
+
+      const response = await api.get(ENDPOINTS.TIMESHEET_WEEKLY_SUMMARY, {
+        params: Payload,
+      });
+
+      console.log('response', response.data);
+
+      if (response.data.status === 'Success') {
+        // Process the weekly attendance summary data
+        const summaryData = response.data.Data.timesheet;
+        setTimesheetSummaryData(summaryData);
+        setTimeSheetStatus(response.data.timesheet_status);
+      }
+    } catch (error) {
+      console.log('Error in fetching the weekly attendance summary', error);
+    }
+  };
+
+  const handleWeekSelect = async data => {
+    console.log('Selected week:', data.weekData);
+    await fetchWeeklyAttendanceSummary(data.weekData);
   };
 
   return (
@@ -167,23 +243,16 @@ const TimesheetScreen = () => {
             </Text>
 
             <View style={{ marginVertical: 20, paddingHorizontal: 20 }}>
-              <Text style={{ fontSize: 16, marginBottom: 8 }}>Select Week</Text>
-              <View
-                style={
-                  {
-                    // borderWidth: 1,
-                    // borderColor: '#ccc',
-                    // borderRadius: 6,
-                    // padding: 10,
-                  }
-                }
-              >
+              <Text style={{ fontSize: 16, marginBottom: 8, color: '#333' }}>
+                Select Week
+              </Text>
+              <View>
                 <CustomDropdown
                   label="Week"
                   showLabel={false}
                   selectedValue={selectedWeek}
-                  onValueChange={value => setSelectedWeek(String(value))}
-                  options={options}
+                  onValueChange={value => handleWeekSelect(value)}
+                  options={weekOptions}
                 />
               </View>
             </View>
@@ -307,12 +376,21 @@ const TimesheetScreen = () => {
           {/* Summary Boxes */}
           <View style={styles.summaryBox}>
             <View style={styles.boxLeft}>
-              <Text style={styles.boxTitle}>Apr 2025</Text>
-              <Text style={styles.boxSub}>FINAL</Text>
+              <Text
+                style={styles.boxTitle}
+              >{`${selectedMonth} ${selectedYear}`}</Text>
+              <Text style={styles.boxSub}>
+                {timeSheetStatus || 'Not Entry'}
+              </Text>
             </View>
             <View style={styles.boxRight}>
               <Text style={styles.boxTitle}>TOTAL DAYS</Text>
-              <Text style={styles.boxSub}>5</Text>
+              <Text style={styles.boxSub}>
+                {Array.isArray(timesheetSummaryData) &&
+                timesheetSummaryData.length > 0
+                  ? timesheetSummaryData.length
+                  : 0}
+              </Text>
             </View>
           </View>
 
@@ -326,22 +404,24 @@ const TimesheetScreen = () => {
           </View>
 
           <ScrollView>
-            {timesheetData.map((item, index) => (
-              <View key={index} style={styles.row}>
-                <Text style={styles.cell}>{item.date}</Text>
-                <Text style={styles.cell1}>{item.in}</Text>
-                <Text style={styles.cell}>{item.out}</Text>
-                <Text style={styles.cell}>{item.total}</Text>
-                <TouchableOpacity
-                  activeOpacity={0.8}
-                  style={styles.statusBtn}
-                  onPress={handleStatusPress}
-                >
-                  <Text style={styles.statusText}>{item.status}</Text>
-                  <Icon name="chevron-forward" size={12} color="#fff" />
-                </TouchableOpacity>
-              </View>
-            ))}
+            {Array.isArray(timesheetSummaryData) &&
+              timesheetSummaryData.length > 0 &&
+              timesheetSummaryData.map((item, index) => (
+                <View key={index} style={styles.row}>
+                  <Text style={styles.cell}>{formatDate(item.Punch_Time)}</Text>
+                  <Text style={styles.cell1}>{item.Intime}</Text>
+                  <Text style={styles.cell}>{item.OutTime}</Text>
+                  <Text style={styles.cell}>{item.Total_Time}</Text>
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    style={styles.statusBtn}
+                    onPress={() => handleStatusPress(item)}
+                  >
+                    <Text style={styles.statusText}>{item.Status}</Text>
+                    <Icon name="chevron-forward" size={12} color="#fff" />
+                  </TouchableOpacity>
+                </View>
+              ))}
           </ScrollView>
           <TouchableOpacity
             // onPress={handleApplyExpense}
@@ -514,6 +594,7 @@ const styles = StyleSheet.create({
   },
   yearText: {
     fontSize: 18,
+    color: '#333',
   },
   monthsContainer: {
     flexDirection: 'row',
@@ -534,6 +615,7 @@ const styles = StyleSheet.create({
   },
   monthText: {
     fontSize: 18,
+    color: '#333',
   },
   modalButtons: {
     flexDirection: 'row',

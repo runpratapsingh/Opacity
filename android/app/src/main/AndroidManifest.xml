@@ -1,15 +1,20 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
-
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <application
       android:name=".MainApplication"
       android:label="@string/app_name"
       android:icon="@mipmap/ic_launcher"
       android:roundIcon="@mipmap/ic_launcher_round"
+      android:usesCleartextTraffic="true"
       android:allowBackup="false"
       android:theme="@style/AppTheme"
       android:supportsRtl="true">
+       <meta-data
+            android:name="com.google.android.maps.v2.API_KEY"
+            android:value="AIzaSyAFnBkU725a9jAMm4JCE5rnHOM20z9H2YE" />
       <activity
         android:name=".MainActivity"
         android:screenOrientation="portrait"
@@ -18,6 +23,7 @@
         android:launchMode="singleTask"
         android:windowSoftInputMode="adjustResize"
         android:exported="true">
+        
         <intent-filter>
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.LAUNCHER" />

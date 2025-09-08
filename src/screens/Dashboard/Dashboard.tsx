@@ -17,6 +17,7 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { getUserData } from '../../utils/StorageManager';
 import { get } from 'react-native/Libraries/TurboModule/TurboModuleRegistry';
 import { UserData } from '../../types/api.types';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 type DashboardScreenNavigationProp = StackNavigationProp<
   RootStackParamList,
@@ -62,11 +63,11 @@ const tiles: Tile[] = [
     icon: 'https://img.icons8.com/color/96/money.png',
     navigateTo: 'Expenses',
   },
-  {
-    title: 'LEAVE',
-    icon: 'https://img.icons8.com/color/96/beach.png',
-    navigateTo: 'Leave',
-  },
+  // {
+  //   title: 'LEAVE',
+  //   icon: 'https://img.icons8.com/color/96/beach.png',
+  //   navigateTo: 'Leave',
+  // },
   {
     title: 'ASSIGNMENT',
     icon: 'https://img.icons8.com/color/96/strategy-board.png',
@@ -81,6 +82,11 @@ const tiles: Tile[] = [
     title: 'HOLIDAYS',
     icon: 'https://img.icons8.com/color/96/summer.png',
     navigateTo: 'Holidays',
+  },
+  {
+    title: 'MY TEAMS',
+    icon: 'https://img.icons8.com/color/96/conference.png', // good team icon
+    navigateTo: 'MyTeams',
   },
   // {
   //   title: 'RESET PASSWORD',
@@ -198,7 +204,7 @@ const DashboardScreen: React.FC = () => {
 
               <View style={styles.row}>
                 <Icon name="phone" size={12} color="#FFF" style={styles.icon} />
-                <Text style={styles.detail}>9696809083</Text>
+                <Text style={styles.detail}>{userDetails?.contact || ''}</Text>
               </View>
             </View>
           </View>
@@ -376,6 +382,7 @@ const styles = StyleSheet.create({
   tileText: {
     fontSize: 12,
     fontWeight: '600',
+    color: '#333',
     textAlign: 'center',
   },
   recentActivitiesContainer: {
@@ -385,6 +392,7 @@ const styles = StyleSheet.create({
   recentActivitiesTitle: {
     fontSize: 16,
     fontWeight: 'bold',
+    color: '#333',
     marginBottom: 10,
   },
   activityItem: {
@@ -404,6 +412,7 @@ const styles = StyleSheet.create({
   },
   activityTitle: {
     fontSize: 14,
+    color: '#333',
   },
   activityTime: {
     fontSize: 12,

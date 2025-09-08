@@ -23,6 +23,56 @@ import CreateRequisition from '../screens/Dashboard/RequisitionScreens/CreateReq
 import OSMMap from '../screens/Dashboard/Mapscreen';
 import DrawerNavigator from './DrawerNavigation';
 import ResetScreen from '../screens/Dashboard/ResetScreen';
+import MyTeamScreen from '../screens/Dashboard/ManagerTeams/MyTeamScreen';
+import TeamMemberDashboardScreen from '../screens/Dashboard/ManagerTeams/TeamMemberDashboardScreen';
+import ManagerAttendanceScreen from '../screens/Dashboard/ManagerTeams/ManagerAttendanceScreen';
+
+type TimesheetData = {
+  timesheet_id: number;
+  customer_name: string;
+  customer_id: string | number;
+  project_name: string;
+  project_id: string | number;
+  description: string;
+  web_entry: string;
+  android_entry: string;
+  date: string;
+  time_in: string;
+  time_out: string;
+  total_time: string;
+  status: string;
+  work_type_id: number;
+  work_type_name: string;
+  timesheet_status: string;
+  timesheet_status_id: number;
+  subtask_id: number; // Optional, if not always present
+};
+
+// types.ts
+export interface Expense {
+  expense_id: number;
+  expense_date: string;
+  expense_type: string;
+  expense_typeId: number;
+  expense_amount: number;
+  project_id: number;
+  project_name: string;
+  expense_description: string;
+  expense_Status: string;
+  filenames: string;
+  from_location: string;
+  to_location: string;
+  distance: number;
+  transport_id: number;
+  transport_name: string;
+  files: { file_name?: string }[]; // in case files array has objects with file_name
+}
+
+type UpdateTimeSheetParamList = {
+  isUpdate: boolean;
+  data: TimesheetData;
+  defaultTab: 'CREATE' | 'SUMMARY';
+};
 
 export type RootStackParamList = {
   Dashboard: undefined;
@@ -37,15 +87,23 @@ export type RootStackParamList = {
   Assignment: undefined;
   Requisition: undefined;
   Holidays: undefined;
-  DaySheetDetails: undefined;
-  ViewTimeSheet: { defaultTab?: 'SUMMARY' | 'CREATE' };
+  DaySheetDetails: { dateDetail: string };
+  ViewTimeSheet: UpdateTimeSheetParamList;
   SearchScreen: undefined;
   ViewProfile: { emp_id: string };
   Notification: undefined;
   Goals: undefined;
-  ViewExpenses: { defaultTab?: 'SUMMARY' | 'CREATE' };
+  ViewExpenses: {
+    defaultTab?: 'SUMMARY' | 'CREATE';
+    month_name?: string;
+    expenseData?: Expense;
+    isUpdate?: boolean;
+  };
   CreateRequisition: undefined;
   ResetScreen: undefined;
+  MyTeams: undefined;
+  MemberDashboard: undefined;
+  ManagerAttendance: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -81,6 +139,15 @@ const StackNavigator = () => {
       <Stack.Screen name="Goals" component={GoalsScreen} />
       <Stack.Screen name="CreateRequisition" component={CreateRequisition} />
       <Stack.Screen name="ResetScreen" component={ResetScreen} />
+      <Stack.Screen name="MyTeams" component={MyTeamScreen} />
+      <Stack.Screen
+        name="MemberDashboard"
+        component={TeamMemberDashboardScreen}
+      />
+      <Stack.Screen
+        name="ManagerAttendance"
+        component={ManagerAttendanceScreen}
+      />
     </Stack.Navigator>
   );
 };

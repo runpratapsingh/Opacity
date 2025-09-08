@@ -19,6 +19,7 @@ import { RootStackParamList } from '../../../navigation/StackNavigator';
 import { api } from '../../../api';
 import { ENDPOINTS } from '../../../api/Endpoints';
 import { getUserData } from '../../../utils/StorageManager';
+import Loader from '../../../components/Loader';
 
 type TimeSheetScreenNavigationProp = StackNavigationProp<RootStackParamList>;
 
@@ -29,31 +30,19 @@ const years: number[] = Array.from(
   (_, i) => 2008 + i,
 );
 
-type TimesheetItem = {
-  month: string;
-  totalDays: number;
-  status: 'NO ENTRY' | 'FINAL' | 'OPEN';
+type MonthlyEntry = {
+  month_name: string;
+  amount: number;
+  status_id: number;
+  status: 'No Entry' | 'Submitted' | 'Open'; // restrict to known values
 };
-
-const timesheetData: TimesheetItem[] = [
-  { month: 'Jan-2025', totalDays: 0, status: 'NO ENTRY' },
-  { month: 'Feb-2025', totalDays: 0, status: 'NO ENTRY' },
-  { month: 'Mar-2025', totalDays: 18, status: 'FINAL' },
-  { month: 'Apr-2025', totalDays: 22, status: 'FINAL' },
-  { month: 'May-2025', totalDays: 22, status: 'FINAL' },
-  { month: 'Jun-2025', totalDays: 21, status: 'FINAL' },
-  { month: 'Jul-2025', totalDays: 10, status: 'OPEN' },
-  { month: 'Aug-2025', totalDays: 0, status: 'NO ENTRY' },
-  { month: 'Sep-2025', totalDays: 0, status: 'NO ENTRY' },
-  { month: 'Oct-2025', totalDays: 0, status: 'NO ENTRY' },
-  { month: 'Nov-2025', totalDays: 0, status: 'NO ENTRY' },
-  { month: 'Dec-2025', totalDays: 0, status: 'NO ENTRY' },
-];
 
 const ExpenseScreen: React.FC = () => {
   const [isYearPickerVisible, setIsYearPickerVisible] =
     useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(false);
   const [selectedYear, setSelectedYear] = useState<number>(currentYear);
+  const [expenseData, setExpenseData] = useState<MonthlyEntry[]>([]);
   const navigation = useNavigation<TimeSheetScreenNavigationProp>();
 
   const handleCalendarPress = (): void => {
@@ -65,19 +54,23 @@ const ExpenseScreen: React.FC = () => {
     setIsYearPickerVisible(false);
   };
 
-  const getStatusColor = (status: TimesheetItem['status']): string => {
+  const getStatusColor = (status: MonthlyEntry['status']): string => {
     switch (status) {
-      case 'FINAL':
+      case 'Submitted':
         return '#73B376';
-      case 'OPEN':
+      case 'Open':
         return '#00BEFF';
       default:
         return '#B5BEAD';
     }
   };
 
-  const handleStatusPress = () => {
-    navigation.navigate('ViewExpenses', { defaultTab: 'SUMMARY' });
+  const handleStatusPress = (item: MonthlyEntry) => {
+    console.log('Selected Item:', item);
+    navigation.navigate('ViewExpenses', {
+      defaultTab: 'SUMMARY',
+      month_name: item.month_name,
+    });
   };
   const handleApplyExpense = () => {
     navigation.navigate('ViewExpenses', { defaultTab: 'CREATE' });
@@ -85,31 +78,37 @@ const ExpenseScreen: React.FC = () => {
 
   const getExpenseHistory = async () => {
     try {
+      setLoading(true);
       const user = await getUserData();
       const body = {
-        emp_id: user?.emp_id,
-        // month: month,
+        Emp_id: user?.emp_id,
         year: selectedYear,
       };
 
-      const response = await api.post(ENDPOINTS.EXPENSE_HISTORY, body, {
-        headers: {
-          'Content-Type': 'application/json',
-        },
+      const response = await api.get(ENDPOINTS.EXPENSE_STATUS, {
+        params: body,
       });
 
-      console.log('getExpenseHistory Response:', response.data);
+      console.log(
+        'getExpenseHistory Response:',
+        response.data,
+        response.data.Data.month_status,
+      );
+      if (response.data.status === 'Success') {
+        setExpenseData(response.data.Data.month_status);
+      }
     } catch (error: any) {
       console.error(
         'getExpenseHistory Error:',
         error?.response || error?.message,
       );
       throw error;
+    } finally {
+      setLoading(false);
     }
   };
 
   useEffect(() => {
-    // Fetch expense history for the selected year
     getExpenseHistory();
   }, [selectedYear]);
 
@@ -121,22 +120,18 @@ const ExpenseScreen: React.FC = () => {
     </View>
   );
 
-  const renderItem = ({
-    item,
-  }: {
-    item: TimesheetItem;
-  }): React.ReactElement => (
+  const renderItem = ({ item }: { item: MonthlyEntry }): React.ReactElement => (
     <View style={styles.itemContainer}>
-      <Text style={styles.monthText}>{item.month}</Text>
-      <Text style={styles.totalDaysText}>{`₹ ${item.totalDays}`}</Text>
-      {item.status === 'FINAL' || item.status === 'OPEN' ? (
+      <Text style={styles.monthText}>{item.month_name}</Text>
+      <Text style={styles.totalDaysText}>{`₹ ${item.amount}`}</Text>
+      {item.status === 'Submitted' || item.status === 'Open' ? (
         <TouchableOpacity
           activeOpacity={0.8}
           style={[
             styles.statusContainer,
             { backgroundColor: getStatusColor(item.status) },
           ]}
-          onPress={() => handleStatusPress()}
+          onPress={() => handleStatusPress(item)}
         >
           <Text style={styles.statusText}>{item.status}</Text>
           <View style={styles.icon}>
@@ -163,8 +158,9 @@ const ExpenseScreen: React.FC = () => {
         rightIconName="calendar-month"
         onRightIconPress={handleCalendarPress}
       />
+      <Loader visible={loading} />
       <FlatList
-        data={timesheetData}
+        data={expenseData}
         renderItem={renderItem}
         keyExtractor={(item, index) => index.toString()}
         ListHeaderComponent={renderHeader}
@@ -256,12 +252,14 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   monthText: {
+    color: '#333',
     fontSize: 12,
     width: '30%',
     textAlign: 'center',
   },
   totalDaysText: {
     fontSize: 12,
+    color: '#333',
     width: '20%',
     textAlign: 'center',
   },
@@ -319,6 +317,7 @@ const styles = StyleSheet.create({
   },
   yearText: {
     fontSize: 18,
+    color: '#333',
   },
   modalButtons: {
     flexDirection: 'row',
